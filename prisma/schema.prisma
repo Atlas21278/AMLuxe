@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Commande {
+  id          Int       @id @default(autoincrement())
+  fournisseur String
+  date        DateTime  @default(now())
+  statut      String    @default("En préparation") // "En préparation" | "En livraison" | "Reçue"
+  tracking    String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  articles    Article[]
+  frais       Frais[]
+}
+
+model Article {
+  id             Int      @id @default(autoincrement())
+  marque         String
+  modele         String
+  prixAchat      Float
+  etat           String   // "Neuf" | "Très bon état" | "Bon état" | "Satisfaisant"
+  refFournisseur String?
+  statut         String   @default("En stock") // "En stock" | "En vente" | "Vendu"
+  prixVente      Float?
+  plateforme     String?  // "Vinted" | "Leboncoin" | "Instagram" | "Autre"
+  prixVenteReel  Float?
+  fraisVente     Float?
+  dateVente      DateTime?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  commandeId     Int
+  commande       Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+}
+
+model Frais {
+  id          Int      @id @default(autoincrement())
+  type        String   // "Douane" | "Livraison" | "Autre"
+  montant     Float
+  description String?
+  createdAt   DateTime @default(now())
+
+  commandeId  Int
+  commande    Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+}

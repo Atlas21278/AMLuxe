@@ -1,0 +1,7 @@
+node_modules
+.env
+.next/
+*.db
+prisma.config.ts.bak
+tsconfig.tsbuildinfo
+.claude/
