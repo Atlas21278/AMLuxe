@@ -12,6 +12,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const body = await req.json()
   const articles: { marque: string; modele: string; prixAchat: number; etat: string; refFournisseur?: string }[] = body.articles ?? []
+  const frais: { type: string; montant: number; description?: string }[] = body.frais ?? []
 
   const commande = await prisma.commande.create({
     data: {
@@ -28,6 +29,13 @@ export async function POST(req: NextRequest) {
           etat: a.etat,
           refFournisseur: a.refFournisseur || null,
           statut: 'En stock',
+        })),
+      } : undefined,
+      frais: frais.length > 0 ? {
+        create: frais.map((f) => ({
+          type: f.type,
+          montant: Number(f.montant),
+          description: f.description || null,
         })),
       } : undefined,
     },

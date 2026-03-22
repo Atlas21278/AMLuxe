@@ -90,6 +90,21 @@ export default function CommandeDetailPage() {
         ))}
       </div>
 
+      {commande.frais.length === 0 && commande.articles.length > 0 && (
+        <div className="mb-4 flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <p className="text-sm text-amber-400">Ajoutez les frais & taxes avant de pouvoir enregistrer une vente</p>
+          <button
+            onClick={() => setModalFrais(true)}
+            className="ml-auto shrink-0 px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-xs text-amber-400 font-medium transition-colors"
+          >
+            Ajouter des frais
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Articles */}
         <div className="lg:col-span-2 bg-white/3 border border-white/5 rounded-xl overflow-hidden overflow-x-auto">
@@ -132,9 +147,10 @@ export default function CommandeDetailPage() {
                       <div className="flex items-center justify-end gap-1">
                         {article.statut !== 'Vendu' && (
                           <button
-                            onClick={() => setVenteArticle(article)}
-                            className="p-1.5 rounded hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors"
-                            title="Mettre en vente / Enregistrer vente"
+                            onClick={() => commande.frais.length > 0 && setVenteArticle(article)}
+                            disabled={commande.frais.length === 0}
+                            className={`p-1.5 rounded transition-colors ${commande.frais.length === 0 ? 'text-white/15 cursor-not-allowed' : 'hover:bg-green-500/10 text-white/40 hover:text-green-400'}`}
+                            title={commande.frais.length === 0 ? 'Ajoutez d\'abord les frais & taxes de la commande' : 'Mettre en vente / Enregistrer vente'}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
