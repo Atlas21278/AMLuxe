@@ -3,7 +3,7 @@ export const STATUTS_COMMANDE = ['En préparation', 'En livraison', 'Reçue'] as
 export type StatutCommande = typeof STATUTS_COMMANDE[number]
 
 // Statuts des articles
-export const STATUTS_ARTICLE = ['En stock', 'En vente', 'Vendu'] as const
+export const STATUTS_ARTICLE = ['En stock', 'En vente', 'Vendu', 'En retour', 'Endommagé', 'Litige'] as const
 export type StatutArticle = typeof STATUTS_ARTICLE[number]
 
 // États des articles

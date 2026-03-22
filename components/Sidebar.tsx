@@ -11,6 +11,15 @@ interface SidebarProps {
 
 const navItems = [
   {
+    href: '/',
+    label: 'Dashboard',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+    ),
+  },
+  {
     href: '/commandes',
     label: 'Commandes',
     icon: (
@@ -118,7 +127,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <p className="px-3 mb-2 text-xs font-semibold text-white/30 uppercase tracking-wider">Menu</p>
           <ul className="space-y-1">
             {navItems.map((item) => {
-              const isActive = mounted && !!pathname && pathname.startsWith(item.href)
+              const isActive = mounted && !!pathname && (
+                item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
+              )
               return (
                 <li key={item.href}>
                   <Link

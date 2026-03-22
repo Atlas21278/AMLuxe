@@ -116,21 +116,21 @@ Tout est chargé d'un coup — si la base grossit (500+ articles), les pages lag
 
 ---
 
-### T-016 · Filtres avancés sur la liste des articles
+### ✅ T-016 · Filtres avancés sur la liste des articles
 **Fichier** : `app/articles/page.tsx`
 Actuellement : filtre par statut uniquement.
 **Manque** : filtre par marque, fourchette de prix, date d'achat, plateforme de vente.
 
 ---
 
-### T-017 · Filtres avancés sur la liste des commandes
+### ✅ T-017 · Filtres avancés sur la liste des commandes
 **Fichier** : `app/commandes/page.tsx`
 Actuellement : recherche texte basique.
 **Manque** : filtre par statut, par date range, par fournisseur.
 
 ---
 
-### T-018 · Ajouter des statuts intermédiaires pour les articles
+### ✅ T-018 · Ajouter des statuts intermédiaires pour les articles
 **Fichier** : `prisma/schema.prisma`
 Statuts actuels : `En stock`, `En vente`, `Vendu`. Manquent : `En retour`, `Endommagé`, `Litige`.
 **Fix** : Ajouter au schema + mettre à jour l'UI avec les couleurs correspondantes.
@@ -151,7 +151,7 @@ Aucun flow "mot de passe oublié". Les admins doivent le changer manuellement vi
 
 ---
 
-### T-021 · Ajouter des indexes Prisma sur les colonnes filtrées
+### ✅ T-021 · Ajouter des indexes Prisma sur les colonnes filtrées
 **Fichier** : `prisma/schema.prisma`
 Les colonnes `marque`, `statut`, `fournisseur` sont souvent filtrées mais n'ont pas d'index.
 **Fix** : Ajouter `@@index([marque])`, `@@index([statut])`, etc.
@@ -172,7 +172,7 @@ Chaque tableau réimplémente sa logique de tri, hover, sélection.
 
 ---
 
-### T-024 · Breadcrumb de navigation
+### ✅ T-024 · Breadcrumb de navigation
 **Fichier** : `components/ClientLayout.tsx`
 Dans `/commandes/[id]` on ne sait pas facilement revenir en arrière.
 **Fix** : Ajouter un breadcrumb `Commandes > Commande #42` en haut des pages détail.
@@ -193,56 +193,56 @@ Quand on modifie un prix de vente ou un statut, l'ancienne valeur est perdue.
 
 ---
 
-### T-027 · Confirmation avant suppression d'une commande
+### ✅ T-027 · Confirmation avant suppression d'une commande
 **Fichier** : `components/commandes/ListeCommandes.tsx`
 La suppression se déclenche directement, sans modale de confirmation.
 **Fix** : Afficher une modale de confirmation avec le nombre d'articles qui seront supprimés.
 
 ---
 
-### T-028 · Undo après suppression
+### ✅ T-028 · Undo après suppression
 **Partout** où il y a une suppression
 Après avoir supprimé, l'utilisateur ne peut pas annuler.
 **Fix** : Afficher un toast "Supprimé · Annuler" pendant 5 secondes avant la suppression réelle.
 
 ---
 
-### T-029 · Gestion des notes sur les frais de commande
+### ✅ T-029 · Gestion des notes sur les frais de commande
 **Fichier** : `components/commandes/FormulaireFrais.tsx`
 Le champ `description` existe dans le schema Prisma mais n'est pas visible dans l'UI.
 **Fix** : Afficher le champ dans le formulaire d'ajout de frais.
 
 ---
 
-### T-030 · Améliorer les loading states dans la page statistiques
+### ✅ T-030 · Améliorer les loading states dans la page statistiques
 **Fichier** : `app/statistiques/page.tsx`
 Des skeletons existent dans les pages commandes/articles mais pas dans les stats.
 **Fix** : Ajouter des squelettes pour chaque KPI card et chaque graphique.
 
 ---
 
-### T-031 · Indicateur de rentabilité par article dans le détail commande
+### ✅ T-031 · Indicateur de rentabilité par article dans le détail commande
 **Fichier** : `app/commandes/[id]/page.tsx`
 Le tableau des articles ne montre pas la marge unitaire (prix vente − prix achat − frais).
 **Fix** : Ajouter une colonne "Marge" avec une couleur verte/rouge selon la rentabilité.
 
 ---
 
-### T-032 · Graphique d'évolution du bénéfice dans les statistiques
+### ✅ T-032 · Graphique d'évolution du bénéfice dans les statistiques
 **Fichier** : `app/statistiques/page.tsx`
 Il n'y a pas de graphique chronologique montrant l'évolution du bénéfice mois par mois.
 **Fix** : Ajouter un `LineChart` Recharts avec les données groupées par mois.
 
 ---
 
-### T-033 · Ajouter un dashboard avec les KPIs du mois en cours sur la page d'accueil
+### ✅ T-033 · Ajouter un dashboard avec les KPIs du mois en cours sur la page d'accueil
 **Fichier** : `app/page.tsx` (ou créer un redirect vers `/commandes`)
 La page d'accueil redirige vers `/commandes`. Pas de vue synthétique.
 **Fix** : Créer un vrai dashboard avec les stats du mois, les dernières commandes et les articles en attente.
 
 ---
 
-### T-034 · Numéro de tracking cliquable dans les commandes
+### ✅ T-034 · Numéro de tracking cliquable dans les commandes
 **Fichier** : `app/commandes/[id]/page.tsx`
 Le champ `tracking` est affiché comme du texte brut.
 **Fix** : Détecter le transporteur (Chronopost, Colissimo, DHL…) depuis le format du numéro et générer un lien de suivi.
@@ -312,7 +312,7 @@ Certains tableaux ne sont pas lisibles sur mobile. Revoir le layout des pages co
 
 ## 🟠 UX & COHÉRENCE — Incohérences formulaires
 
-### T-046 · Combobox marque/modèle absent dans l'édition d'article
+### ✅ T-046 · Combobox marque/modèle absent dans l'édition d'article
 **Fichier** : `components/articles/FormulaireArticle.tsx`
 Le formulaire de création de commande utilise un `<Combobox>` avec autocomplétion pour marque et modèle. Mais le formulaire d'édition d'article (`FormulaireArticle`) utilise de simples `<input type="text">`.
 **Fix** : Remplacer les inputs marque/modèle par le composant `<Combobox>` avec `MARQUES` et `getModeles()` depuis `data/marques.ts`, comme dans `FormulaireCommande`.
@@ -326,21 +326,21 @@ Sur la page articles, seul le bouton "Vendre" est disponible sur chaque ligne. P
 
 ---
 
-### T-048 · Gestion d'erreur API absente dans tous les formulaires
+### ✅ T-048 · Gestion d'erreur API absente dans tous les formulaires
 **Fichiers** : `FormulaireArticle.tsx`, `FormulaireVente.tsx`, `FormulaireFrais.tsx`, `FormulaireCommande.tsx`
 Aucun formulaire ne vérifie si le `fetch` a réussi avant d'appeler `onClose()`. Si l'API renvoie une erreur 4xx/5xx, le modal se ferme sans afficher de message — l'utilisateur pense que ça a marché.
 **Fix** : Ajouter `if (!res.ok) { toast.error(...); return }` dans chaque `handleSubmit` avant d'appeler `onClose()`.
 
 ---
 
-### T-049 · Deux systèmes de toast cohabitent
+### ✅ T-049 · Deux systèmes de toast cohabitent
 **Fichiers** : `components/ui/Toast.tsx` (custom), `sonner` (library)
 Le composant `Toast.tsx` est encore utilisé dans `app/commandes/[id]/page.tsx` alors que Sonner est utilisé partout ailleurs. Deux systèmes = deux positionnements, deux styles, incohérence visuelle.
 **Fix** : Remplacer toutes les utilisations du composant `<Toast>` custom par `toast.error()` / `toast.success()` de Sonner, puis supprimer `components/ui/Toast.tsx`.
 
 ---
 
-### T-050 · Constantes locales dupliquées malgré `constants/statuts.ts`
+### ✅ T-050 · Constantes locales dupliquées malgré `constants/statuts.ts`
 **Fichiers** : `FormulaireCommande.tsx`, `FormulaireFrais.tsx`, `ListeCommandes.tsx`, `FormulaireArticle.tsx`
 Malgré la création de `constants/statuts.ts`, chaque composant redéfinit ses propres tableaux de statuts, états et types de frais localement. En plus, `FormulaireFrais.tsx` n'a pas 'Assurance' dans ses types de frais alors que `constants/statuts.ts` l'inclut.
 **Fix** : Importer et utiliser `STATUTS_COMMANDE`, `STATUTS_ARTICLE`, `TYPES_FRAIS`, `ETATS` depuis `constants/statuts.ts` dans tous les composants. Supprimer les déclarations locales.
@@ -354,7 +354,7 @@ Le champ "Fournisseur" est un `<input type="text">` libre. Cela provoque des dou
 
 ---
 
-### T-052 · Toast de succès absent après création/modification
+### ✅ T-052 · Toast de succès absent après création/modification
 **Fichiers** : tous les formulaires
 Quand une action réussit (créer commande, modifier article, enregistrer vente), aucun feedback visuel de succès n'est affiché. Le modal se ferme sans confirmation.
 **Fix** : Ajouter `toast.success('Commande créée')`, `toast.success('Article modifié')`, etc. dans chaque `handleSubmit` après la réponse API positive.
@@ -375,21 +375,21 @@ Le modal de création de commande (qui contient fournisseur, date, statut, + lig
 
 ---
 
-### T-055 · Pas de skeleton dans la page commande détail
+### ✅ T-055 · Pas de skeleton dans la page commande détail
 **Fichier** : `app/commandes/[id]/page.tsx`
 Pendant le chargement du détail d'une commande, la page affiche un simple texte "Chargement…". Toutes les autres pages ont des squelettes animés.
 **Fix** : Remplacer le texte de chargement par des squelettes cohérents avec le reste de l'app.
 
 ---
 
-### T-056 · Pas de toast d'erreur si le fetch échoue sur `/commandes/[id]`
+### ✅ T-056 · Pas de toast d'erreur si le fetch échoue sur `/commandes/[id]`
 **Fichier** : `app/commandes/[id]/page.tsx`
 Si `fetchCommande()` échoue (réseau, serveur), aucun message d'erreur n'est affiché.
 **Fix** : Ajouter un `try/catch` avec `toast.error('Impossible de charger la commande')` et afficher un état d'erreur avec bouton "Réessayer".
 
 ---
 
-### T-057 · Condition confuse dans FormulaireVente pour les champs vente
+### ✅ T-057 · Condition confuse dans FormulaireVente pour les champs vente
 **Fichier** : `components/articles/FormulaireVente.tsx`
 La condition `{(mode === 'vendu' || article.statut === 'En vente') && (...)}` pour afficher les champs prix réel/frais/date est difficile à comprendre et crée des cas d'usage inattendus.
 **Fix** : Simplifier la logique — n'afficher les champs de vente finale que si `mode === 'vendu'`. La mise en vente (mode `vente`) n'a besoin que de `prixVente` et `plateforme`.

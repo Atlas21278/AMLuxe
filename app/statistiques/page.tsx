@@ -114,10 +114,42 @@ export default function StatistiquesPage() {
   if (loading) return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8"><div className="skeleton h-7 w-40 mb-2" /><div className="skeleton h-4 w-56" /></div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
-        {Array.from({ length: 4 }).map((_, i) => <div key={i} className="bg-white/3 border border-white/5 rounded-xl p-4"><div className="skeleton h-3 w-20 mb-3" /><div className="skeleton h-7 w-28" /></div>)}
+      {/* KPIs skeleton */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="bg-white/3 border border-white/5 rounded-xl p-4">
+            <div className="skeleton h-3 w-24 mb-3" />
+            <div className="skeleton h-6 w-20 mb-1.5" />
+            <div className="skeleton h-3 w-16" />
+          </div>
+        ))}
       </div>
-      <div className="skeleton h-64 w-full rounded-xl" />
+      {/* Décomposition skeleton */}
+      <div className="bg-white/3 border border-white/5 rounded-xl p-5 mb-6">
+        <div className="skeleton h-4 w-48 mb-4" />
+        <div className="flex gap-6">
+          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton h-4 w-24" />)}
+        </div>
+      </div>
+      {/* Graphiques skeleton */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <div className="sm:col-span-2 bg-white/3 border border-white/5 rounded-xl p-5">
+          <div className="skeleton h-4 w-56 mb-5" />
+          <div className="skeleton h-52 w-full rounded-lg" />
+        </div>
+        <div className="bg-white/3 border border-white/5 rounded-xl p-5">
+          <div className="skeleton h-4 w-40 mb-4" />
+          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="flex justify-between py-3 border-b border-white/5"><div className="skeleton h-4 w-24" /><div className="skeleton h-4 w-16" /></div>)}
+        </div>
+        <div className="bg-white/3 border border-white/5 rounded-xl p-5">
+          <div className="skeleton h-4 w-48 mb-5" />
+          <div className="skeleton h-52 w-full rounded-lg" />
+        </div>
+        <div className="sm:col-span-2 bg-white/3 border border-white/5 rounded-xl p-5">
+          <div className="skeleton h-4 w-36 mb-4" />
+          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="flex justify-between py-3 border-b border-white/5"><div className="skeleton h-4 w-28" /><div className="skeleton h-4 w-16" /><div className="skeleton h-4 w-20" /><div className="skeleton h-4 w-16" /></div>)}
+        </div>
+      </div>
     </div>
   )
 

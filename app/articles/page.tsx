@@ -13,13 +13,15 @@ const FormulaireArticle = dynamic(() => import('@/components/articles/Formulaire
 
 type ArticleAvecCommande = Article & { commande: { fournisseur: string; id: number; frais: { id: number }[] } }
 
-const FILTRES_STATUT = ['tous', 'En stock', 'En vente', 'Vendu']
+const FILTRES_STATUT = ['tous', 'En stock', 'En vente', 'Vendu', 'En retour', 'Endommagé', 'Litige']
 
 export default function ArticlesPage() {
   const [articles, setArticles] = useState<ArticleAvecCommande[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filtreStatut, setFiltreStatut] = useState('tous')
+  const [filtreMarque, setFiltreMarque] = useState('toutes')
+  const [filtrePlateforme, setFiltrePlateforme] = useState('toutes')
   const [venteArticle, setVenteArticle] = useState<Article | null>(null)
   const [editArticle, setEditArticle] = useState<Article | null>(null)
   const [page, setPage] = useState(1)
@@ -40,10 +42,15 @@ export default function ArticlesPage() {
 
   useEffect(() => { fetchArticles() }, [])
 
+  const marquesDisponibles = [...new Set(articles.map((a) => a.marque))].sort()
+  const plateformesDisponibles = [...new Set(articles.filter((a) => a.plateforme).map((a) => a.plateforme!))].sort()
+
   const filtered = articles.filter((a) => {
     const matchSearch = `${a.marque} ${a.modele}`.toLowerCase().includes(search.toLowerCase())
     const matchStatut = filtreStatut === 'tous' || a.statut === filtreStatut
-    return matchSearch && matchStatut
+    const matchMarque = filtreMarque === 'toutes' || a.marque === filtreMarque
+    const matchPlateforme = filtrePlateforme === 'toutes' || a.plateforme === filtrePlateforme
+    return matchSearch && matchStatut && matchMarque && matchPlateforme
   })
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
@@ -87,14 +94,44 @@ export default function ArticlesPage() {
       </div>
 
       {/* Filtres */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="relative flex-1 sm:max-w-xs">
-          <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input type="text" placeholder="Rechercher un article..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/60" />
+      <div className="flex flex-col gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 sm:max-w-xs">
+            <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input type="text" placeholder="Rechercher un article..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/60" />
+          </div>
+          <select
+            value={filtreMarque}
+            onChange={(e) => { setFiltreMarque(e.target.value); setPage(1) }}
+            style={{ backgroundColor: '#1a1a26', colorScheme: 'dark' }}
+            className="appearance-none px-3 py-2 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60 cursor-pointer"
+          >
+            <option value="toutes">Toutes les marques</option>
+            {marquesDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+          {plateformesDisponibles.length > 0 && (
+            <select
+              value={filtrePlateforme}
+              onChange={(e) => { setFiltrePlateforme(e.target.value); setPage(1) }}
+              style={{ backgroundColor: '#1a1a26', colorScheme: 'dark' }}
+              className="appearance-none px-3 py-2 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60 cursor-pointer"
+            >
+              <option value="toutes">Toutes les plateformes</option>
+              {plateformesDisponibles.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          )}
+          {(filtreMarque !== 'toutes' || filtrePlateforme !== 'toutes' || search) && (
+            <button
+              onClick={() => { setFiltreMarque('toutes'); setFiltrePlateforme('toutes'); setSearch(''); setPage(1) }}
+              className="px-3 py-2 text-xs text-white/40 hover:text-white border border-white/10 rounded-lg hover:bg-white/5 transition-colors"
+            >
+              Réinitialiser
+            </button>
+          )}
         </div>
-        <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1">
+        <div className="flex flex-wrap gap-1 bg-white/5 border border-white/10 rounded-lg p-1 w-fit">
           {FILTRES_STATUT.map((f) => (
             <button
               key={f}
