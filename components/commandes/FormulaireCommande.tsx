@@ -321,18 +321,18 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
         </>
       )}
 
-      <div className="flex gap-3 pt-2">
+      <div className="flex gap-3 pt-4">
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 px-4 py-2 rounded-lg border border-white/10 text-sm text-white/60 hover:bg-white/5 hover:text-white transition-colors"
+          className="flex-1 px-4 py-2.5 rounded-lg border border-white/10 text-sm text-white/60 hover:bg-white/5 hover:text-white transition-colors"
         >
           Annuler
         </button>
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-sm font-medium text-white transition-colors"
+          className="flex-1 px-4 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-sm font-medium text-white transition-colors"
         >
           {isPending ? 'Enregistrement...' : isEdit ? 'Modifier' : 'Créer la commande'}
         </button>
