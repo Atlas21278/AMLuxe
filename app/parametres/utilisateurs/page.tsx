@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 
 interface User {
   id: number
@@ -17,9 +18,14 @@ export default function UtilisateursPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [deleteError, setDeleteError] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
   const [form, setForm] = useState({ nom: '', email: '', motDePasse: '', role: 'admin' })
+
+  // État pour le modal de changement de mot de passe
+  const [passwordModal, setPasswordModal] = useState<User | null>(null)
+  const [passwordForm, setPasswordForm] = useState({ motDePasse: '', confirmation: '' })
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
 
   useEffect(() => {
     fetchUsers()
@@ -46,6 +52,7 @@ export default function UtilisateursPage() {
     if (res.ok) {
       setShowModal(false)
       setForm({ nom: '', email: '', motDePasse: '', role: 'admin' })
+      toast.success('Utilisateur créé')
       fetchUsers()
     } else {
       const data = await res.json()
@@ -64,17 +71,50 @@ export default function UtilisateursPage() {
   }
 
   async function handleDelete(id: number) {
-    setDeleteError('')
     const res = await fetch(`/api/users/${id}`, { method: 'DELETE' })
     if (res.ok) {
       setConfirmDeleteId(null)
+      toast.success('Utilisateur supprimé')
       fetchUsers()
     } else {
       const data = await res.json()
-      setDeleteError(data.error || 'Erreur lors de la suppression')
+      toast.error(data.error || 'Erreur lors de la suppression')
       setConfirmDeleteId(null)
     }
   }
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (!passwordModal) return
+
+    if (passwordForm.motDePasse !== passwordForm.confirmation) {
+      setPasswordError('Les mots de passe ne correspondent pas')
+      return
+    }
+    if (passwordForm.motDePasse.length < 8) {
+      setPasswordError('Le mot de passe doit faire au moins 8 caractères')
+      return
+    }
+
+    setPasswordSaving(true)
+    setPasswordError('')
+    const res = await fetch(`/api/users/${passwordModal.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motDePasse: passwordForm.motDePasse }),
+    })
+
+    if (res.ok) {
+      setPasswordModal(null)
+      setPasswordForm({ motDePasse: '', confirmation: '' })
+      toast.success(`Mot de passe de ${passwordModal.nom} modifié`)
+    } else {
+      setPasswordError('Erreur lors de la modification')
+    }
+    setPasswordSaving(false)
+  }
+
+  const inputClass = 'w-full px-3.5 py-2.5 bg-white/5 border border-white/8 rounded-xl text-white text-sm outline-none focus:border-purple-500/50 focus:bg-purple-500/5 transition-colors'
 
   return (
     <div className="page-enter p-4 sm:p-6 lg:p-8">
@@ -95,15 +135,6 @@ export default function UtilisateursPage() {
             Nouvel utilisateur
           </button>
         </div>
-
-        {/* Erreur suppression */}
-        {deleteError && (
-          <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            {deleteError}
-            <button onClick={() => setDeleteError('')} className="ml-auto text-red-400/50 hover:text-red-400">✕</button>
-          </div>
-        )}
 
         {/* Table */}
         <div className="bg-[#13131c] border border-white/5 rounded-2xl overflow-hidden">
@@ -136,7 +167,7 @@ export default function UtilisateursPage() {
                   <tr key={user.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-purple-600/20 border border-purple-500/20 flex items-center justify-center text-purple-400 text-xs font-bold">
+                        <div className="w-8 h-8 rounded-full bg-purple-600/20 border border-purple-500/20 flex items-center justify-center text-purple-400 text-xs font-bold shrink-0">
                           {user.nom.charAt(0).toUpperCase()}
                         </div>
                         <span className="text-sm font-medium text-white">{user.nom}</span>
@@ -164,16 +195,33 @@ export default function UtilisateursPage() {
                         {user.actif ? 'Actif' : 'Inactif'}
                       </button>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => setConfirmDeleteId(user.id)}
-                        className="p-1.5 text-white/20 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                        title="Supprimer"
-                      >
-                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
-                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Changer le mot de passe */}
+                        <button
+                          onClick={() => {
+                            setPasswordModal(user)
+                            setPasswordForm({ motDePasse: '', confirmation: '' })
+                            setPasswordError('')
+                          }}
+                          className="p-1.5 text-white/20 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                          title="Changer le mot de passe"
+                        >
+                          <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
+                            <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                        {/* Supprimer */}
+                        <button
+                          onClick={() => setConfirmDeleteId(user.id)}
+                          className="p-1.5 text-white/20 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          title="Supprimer"
+                        >
+                          <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
+                            <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -209,7 +257,81 @@ export default function UtilisateursPage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal changement de mot de passe */}
+      {passwordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPasswordModal(null)} />
+          <div className="relative bg-[#13131c] border border-white/8 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+                  <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-white">Changer le mot de passe</h2>
+                <p className="text-xs text-white/40 mt-0.5">{passwordModal.nom} · {passwordModal.email}</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-1.5">
+                  Nouveau mot de passe
+                </label>
+                <input
+                  type="password"
+                  value={passwordForm.motDePasse}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, motDePasse: e.target.value })}
+                  className={inputClass}
+                  placeholder="Minimum 8 caractères"
+                  minLength={8}
+                  required
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-1.5">
+                  Confirmation
+                </label>
+                <input
+                  type="password"
+                  value={passwordForm.confirmation}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmation: e.target.value })}
+                  className={inputClass}
+                  placeholder="Répéter le mot de passe"
+                  required
+                />
+              </div>
+
+              {passwordError && (
+                <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+                  {passwordError}
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPasswordModal(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-white/8 text-white/60 hover:text-white hover:bg-white/5 text-sm font-medium transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordSaving}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white text-sm font-medium transition-colors"
+                >
+                  {passwordSaving ? 'Enregistrement...' : 'Confirmer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal création utilisateur */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
@@ -223,7 +345,7 @@ export default function UtilisateursPage() {
                   type="text"
                   value={form.nom}
                   onChange={(e) => setForm({ ...form, nom: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white/5 border border-white/8 rounded-xl text-white text-sm outline-none focus:border-purple-500/50 focus:bg-purple-500/5 transition-colors"
+                  className={inputClass}
                   placeholder="Jean Dupont"
                   required
                 />
@@ -234,7 +356,7 @@ export default function UtilisateursPage() {
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white/5 border border-white/8 rounded-xl text-white text-sm outline-none focus:border-purple-500/50 focus:bg-purple-500/5 transition-colors"
+                  className={inputClass}
                   placeholder="jean@amluxe.fr"
                   required
                 />
@@ -245,11 +367,22 @@ export default function UtilisateursPage() {
                   type="password"
                   value={form.motDePasse}
                   onChange={(e) => setForm({ ...form, motDePasse: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white/5 border border-white/8 rounded-xl text-white text-sm outline-none focus:border-purple-500/50 focus:bg-purple-500/5 transition-colors"
+                  className={inputClass}
                   placeholder="Minimum 8 caractères"
                   minLength={8}
                   required
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-1.5">Rôle</label>
+                <select
+                  value={form.role}
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  className={inputClass}
+                >
+                  <option value="admin">Admin</option>
+                  <option value="viewer">Viewer</option>
+                </select>
               </div>
 
               {error && (

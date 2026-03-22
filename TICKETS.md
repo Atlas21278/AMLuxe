@@ -403,4 +403,27 @@ L'affichage du rôle utilisateur utilise un badge inline custom (classes Tailwin
 
 ---
 
+---
+
+### ✅ T-059 · Sidebar collapsible sur desktop
+**Fichier** : `components/ClientLayout.tsx`, `components/Sidebar.tsx`
+La sidebar est toujours visible et prend 256px en permanence. Impossible de la fermer pour gagner de l'espace sur desktop.
+**Fix** : Ajouter un bouton toggle pour réduire/étendre la sidebar sur desktop. État persisté en localStorage.
+
+---
+
+### ✅ T-060 · Bouton déconnexion absent sur certaines pages (statistiques, objectifs)
+**Fichier** : `components/Sidebar.tsx`
+Sur les pages avec beaucoup de contenu (statistiques, objectifs), le footer de la sidebar (avec le bouton déconnexion) est poussé hors de l'écran car la sidebar prend `h-full` de la page entière au lieu de `h-screen`.
+**Fix** : Passer la sidebar en `sticky top-0 h-screen` sur desktop pour qu'elle reste dans le viewport quelle que soit la hauteur du contenu.
+
+---
+
+### ✅ T-061 · Modification de mot de passe dans la gestion utilisateurs
+**Fichier** : `app/parametres/utilisateurs/page.tsx`
+Aucun moyen de changer le mot de passe d'un utilisateur depuis l'interface. Seule la création avec un mot de passe initial est possible.
+**Fix** : Ajouter un bouton "Changer le mot de passe" sur chaque ligne utilisateur qui ouvre une modale avec les champs nouveau mot de passe + confirmation. Appelle `PATCH /api/users/[id]` avec `motDePasse`.
+
+---
+
 *Fichier mis à jour le 2026-03-22.*

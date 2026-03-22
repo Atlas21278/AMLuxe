@@ -7,6 +7,8 @@ import { useState, useEffect } from 'react'
 
 interface SidebarProps {
   onClose?: () => void
+  collapsed: boolean
+  onToggleCollapse: () => void
 }
 
 const navItems = [
@@ -87,7 +89,7 @@ const settingsItems = [
   },
 ]
 
-export default function Sidebar({ onClose }: SidebarProps) {
+export default function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -97,34 +99,62 @@ export default function Sidebar({ onClose }: SidebarProps) {
   }
 
   return (
-    <aside className="w-64 h-full min-h-screen flex flex-col bg-[#13131c] border-r border-white/5">
-      {/* Logo */}
-      <div className="px-6 py-6 border-b border-white/5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <aside className={`h-full flex flex-col bg-[#13131c] border-r border-white/5 transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
+      {/* Logo + toggle */}
+      <div className={`border-b border-white/5 flex items-center ${collapsed ? 'px-3 py-5 justify-center' : 'px-4 py-5 justify-between'}`}>
+        {!collapsed && (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+              AM
+            </div>
+            <div>
+              <p className="font-semibold text-white text-sm tracking-wide">AMLuxe</p>
+              <p className="text-xs text-white/40">Gestion achat/revente</p>
+            </div>
+          </div>
+        )}
+        {collapsed && (
           <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center text-white font-bold text-sm">
             AM
           </div>
-          <div>
-            <p className="font-semibold text-white text-sm tracking-wide">AMLuxe</p>
-            <p className="text-xs text-white/40">Gestion achat/revente</p>
-          </div>
-        </div>
-        {/* Bouton fermer sur mobile */}
+        )}
+
+        {/* Bouton fermer mobile */}
+        {onClose && !collapsed && (
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors"
+            aria-label="Fermer le menu"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
+
+        {/* Bouton collapse desktop */}
         <button
-          onClick={onClose}
-          className="lg:hidden p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors"
-          aria-label="Fermer le menu"
+          onClick={onToggleCollapse}
+          className="hidden lg:flex p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors"
+          aria-label={collapsed ? 'Étendre la sidebar' : 'Réduire la sidebar'}
+          title={collapsed ? 'Étendre' : 'Réduire'}
         >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
-            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+            {collapsed ? (
+              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            ) : (
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            )}
           </svg>
         </button>
       </div>
 
       {/* Navigation principale */}
-      <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
+      <nav className="flex-1 px-2 py-4 space-y-6 overflow-y-auto overflow-x-hidden">
         <div>
-          <p className="px-3 mb-2 text-xs font-semibold text-white/30 uppercase tracking-wider">Menu</p>
+          {!collapsed && (
+            <p className="px-3 mb-2 text-xs font-semibold text-white/30 uppercase tracking-wider">Menu</p>
+          )}
           <ul className="space-y-1">
             {navItems.map((item) => {
               const isActive = mounted && !!pathname && (
@@ -135,18 +165,23 @@ export default function Sidebar({ onClose }: SidebarProps) {
                   <Link
                     href={item.href}
                     onClick={handleNav}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    title={collapsed ? item.label : undefined}
+                    className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-all ${collapsed ? 'px-2 py-2.5 justify-center' : 'px-3 py-2.5'} ${
                       isActive
                         ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
-                        : 'text-white/60 hover:text-white hover:bg-white/5'
+                        : 'text-white/60 hover:text-white hover:bg-white/5 border border-transparent'
                     }`}
                   >
-                    <span className={isActive ? 'text-purple-400' : 'text-white/40'}>
+                    <span className={`shrink-0 ${isActive ? 'text-purple-400' : 'text-white/40'}`}>
                       {item.icon}
                     </span>
-                    {item.label}
-                    {isActive && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-400" />
+                    {!collapsed && (
+                      <>
+                        {item.label}
+                        {isActive && (
+                          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-400" />
+                        )}
+                      </>
                     )}
                   </Link>
                 </li>
@@ -156,7 +191,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </div>
 
         <div>
-          <p className="px-3 mb-2 text-xs font-semibold text-white/30 uppercase tracking-wider">Paramètres</p>
+          {!collapsed && (
+            <p className="px-3 mb-2 text-xs font-semibold text-white/30 uppercase tracking-wider">Paramètres</p>
+          )}
           <ul className="space-y-1">
             {settingsItems.map((item) => {
               const isActive = mounted && !!pathname && pathname.startsWith(item.href)
@@ -165,18 +202,23 @@ export default function Sidebar({ onClose }: SidebarProps) {
                   <Link
                     href={item.href}
                     onClick={handleNav}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    title={collapsed ? item.label : undefined}
+                    className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-all ${collapsed ? 'px-2 py-2.5 justify-center' : 'px-3 py-2.5'} ${
                       isActive
                         ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
-                        : 'text-white/60 hover:text-white hover:bg-white/5'
+                        : 'text-white/60 hover:text-white hover:bg-white/5 border border-transparent'
                     }`}
                   >
-                    <span className={isActive ? 'text-purple-400' : 'text-white/40'}>
+                    <span className={`shrink-0 ${isActive ? 'text-purple-400' : 'text-white/40'}`}>
                       {item.icon}
                     </span>
-                    {item.label}
-                    {isActive && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-400" />
+                    {!collapsed && (
+                      <>
+                        {item.label}
+                        {isActive && (
+                          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-400" />
+                        )}
+                      </>
                     )}
                   </Link>
                 </li>
@@ -187,17 +229,18 @@ export default function Sidebar({ onClose }: SidebarProps) {
       </nav>
 
       {/* Footer avec déconnexion */}
-      <div className="px-3 py-4 border-t border-white/5 space-y-1">
+      <div className={`px-2 py-4 border-t border-white/5 space-y-1 ${collapsed ? 'flex flex-col items-center' : ''}`}>
         <button
           onClick={() => signOut({ callbackUrl: '/login' })}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
+          title={collapsed ? 'Se déconnecter' : undefined}
+          className={`flex items-center gap-3 rounded-lg text-sm font-medium text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all ${collapsed ? 'p-2 justify-center w-full' : 'px-3 py-2.5 w-full'}`}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          Se déconnecter
+          {!collapsed && 'Se déconnecter'}
         </button>
-        <p className="px-3 text-xs text-white/20">v1.0.0</p>
+        {!collapsed && <p className="px-3 text-xs text-white/20">v1.0.0</p>}
       </div>
     </aside>
   )
