@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { toast } from 'sonner'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 
 // ─── Paliers ────────────────────────────────────────────────────────────────
@@ -171,9 +172,14 @@ function Particles() {
 
 function FeaturedCarImage({ palier }: { palier: typeof PALIERS[0] }) {
   const [ok, setOk] = useState(false)
+  const imgRef = useRef<HTMLImageElement>(null)
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setOk(true)
+  }, [])
   return (
     <div className="absolute bottom-0 right-0 w-72 h-44 pointer-events-none">
       <img
+        ref={imgRef}
         src={palier.image}
         alt={palier.nom}
         className={`w-full h-full object-contain object-right-bottom drop-shadow-2xl transition-opacity duration-500 ${ok ? 'opacity-90' : 'opacity-0'}`}
@@ -184,162 +190,104 @@ function FeaturedCarImage({ palier }: { palier: typeof PALIERS[0] }) {
   )
 }
 
-// ─── Barre de progression cliquable ─────────────────────────────────────────
+// ─── Barre de progression ─────────────────────────────────────────────────────
 
-function ProgressBar({ progressPct, palierActuel, palierPrecedent, getStatut }: {
+function ProgressBar({ progressPct, palierActuel, palierPrecedent }: {
   progressPct: number
   palierActuel: typeof PALIERS[0]
   palierPrecedent: typeof PALIERS[0] | undefined
-  getStatut: (p: typeof PALIERS[0]) => 'unlocked' | 'current' | 'locked'
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const fromColor = palierPrecedent?.color ?? '#4f46e5'
+  const toColor = palierActuel.color
+  const glow = palierActuel.glow
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.4 }}
+      initial={{ opacity: 0, scale: 0.98, y: 24 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 1, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
       className="mb-16"
     >
-      {/* Zone cliquable */}
-      <motion.div
-        onClick={() => setExpanded((e) => !e)}
-        className="relative cursor-pointer group"
-        animate={{ scale: expanded ? 1.01 : 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        {/* Hint */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs text-white/25 group-hover:text-white/50 transition-colors flex items-center gap-1.5">
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" />
-            </svg>
-            Clique pour {expanded ? 'réduire' : 'voir les détails'}
-          </span>
-          <span className="text-xs font-bold" style={{ color: palierActuel.color }}>
-            {progressPct.toFixed(2)}%
-          </span>
-        </div>
+      {/* Halo externe pulsant autour de la track */}
+      <div className="relative">
+        <motion.div
+          animate={{ opacity: [0.3, 0.7, 0.3] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute -inset-1 rounded-3xl pointer-events-none"
+          style={{ background: `radial-gradient(ellipse at left, ${glow.replace('0.5', '0.25')}, transparent 70%)`, filter: 'blur(8px)' }}
+        />
 
-        {/* Track principal */}
-        <div className="relative">
-          <div
-            className="rounded-2xl overflow-hidden border border-white/10 transition-all duration-500"
+        {/* Track */}
+        <div
+          className="relative h-14 rounded-2xl overflow-hidden border border-white/10"
+          style={{
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.2))',
+            animation: 'trackBreath 4s ease-in-out infinite',
+          }}
+        >
+          {/* Fill */}
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPct}%` }}
+            transition={{ duration: 3, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute inset-y-0 left-0 rounded-2xl"
             style={{
-              height: expanded ? '52px' : '36px',
-              background: 'rgba(255,255,255,0.04)',
-              boxShadow: `inset 0 2px 8px rgba(0,0,0,0.4)`,
+              background: `linear-gradient(90deg, ${fromColor} 0%, ${toColor} 60%, #fff8 100%)`,
+              animation: 'barGlow 3s ease-in-out infinite',
+              minWidth: progressPct > 0 ? '12px' : '0',
             }}
           >
-            {/* Fill */}
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPct}%` }}
-              transition={{ duration: 2.5, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="h-full rounded-2xl relative overflow-hidden"
+            {/* Shimmer rapide */}
+            <div className="absolute inset-0 overflow-hidden rounded-2xl">
+              <div
+                className="absolute inset-y-0 w-20 bg-white/40"
+                style={{ animation: 'shimmer-fast 2.2s ease-in-out 1.2s infinite' }}
+              />
+            </div>
+            {/* Shimmer lent large */}
+            <div className="absolute inset-0 overflow-hidden rounded-2xl">
+              <div
+                className="absolute inset-y-0 w-40 bg-white/15"
+                style={{ animation: 'shimmer-slow 4s ease-in-out 1.8s infinite' }}
+              />
+            </div>
+            {/* Reflet haut */}
+            <div className="absolute top-0 left-0 right-0 h-1/2 rounded-t-2xl"
+              style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 100%)' }} />
+            {/* Reflet bas subtil */}
+            <div className="absolute bottom-0 left-0 right-0 h-1/4 rounded-b-2xl"
+              style={{ background: 'linear-gradient(0deg, rgba(0,0,0,0.25) 0%, transparent 100%)' }} />
+            {/* Tip lumineux en bout de barre */}
+            <div
+              className="absolute right-0 inset-y-0 rounded-r-2xl"
               style={{
-                background: `linear-gradient(90deg, ${palierPrecedent?.color ?? '#4f46e5'} 0%, ${palierActuel.color} 100%)`,
-                boxShadow: `0 0 30px ${palierActuel.glow}, 0 0 60px ${palierActuel.glow.replace('0.5', '0.2')}`,
+                width: '6px',
+                background: 'rgba(255,255,255,0.9)',
+                animation: 'tipPulse 1.8s ease-in-out infinite',
+                boxShadow: `0 0 16px 6px ${glow.replace('0.5', '0.8')}`,
               }}
-            >
-              {/* Shimmer */}
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute inset-y-0 w-24 bg-white/25 skew-x-12"
-                  style={{ animation: 'shimmer 2.5s ease-in-out infinite' }} />
-              </div>
-              {/* Highlight top */}
-              <div className="absolute top-0 left-0 right-0 h-1/3 bg-white/10 rounded-t-2xl" />
-            </motion.div>
-          </div>
-
-          {/* Marqueurs — ticks verticaux, sans cercles */}
-          <div className="absolute inset-0 pointer-events-none">
-            {PALIERS.map((p, i) => {
-              const position = (p.montant / PALIERS[PALIERS.length - 1].montant) * 100
-              const est = getStatut(p)
-              const isCurrent = est === 'current'
-              return (
-                <div key={p.montant}
-                  className="absolute inset-0 flex items-stretch"
-                  style={{ left: `${position}%`, transform: 'translateX(-50%)', width: '2px' }}
-                >
-                  {/* Tick vertical pleine hauteur */}
-                  <motion.div
-                    initial={{ scaleY: 0 }}
-                    animate={{ scaleY: 1 }}
-                    transition={{ delay: 0.6 + i * 0.08, duration: 0.4 }}
-                    className="w-full"
-                    style={{
-                      background: est === 'unlocked'
-                        ? p.color
-                        : isCurrent
-                          ? `linear-gradient(180deg, ${p.color}, ${p.color}40)`
-                          : 'rgba(255,255,255,0.12)',
-                      boxShadow: est !== 'locked' ? `0 0 8px ${p.glow}` : 'none',
-                      animation: isCurrent ? 'ping-slow 2s ease-in-out infinite' : 'none',
-                    }}
-                  />
-                  {/* Losange indicateur au-dessus pour le palier actuel */}
-                  {isCurrent && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45"
-                      style={{ background: p.color, boxShadow: `0 0 8px ${p.glow}`, animation: 'ping-slow 1.5s ease-in-out infinite' }}
-                    />
-                  )}
-                </div>
-              )
-            })}
-          </div>
+            />
+          </motion.div>
         </div>
 
-        {/* Labels voitures — visibles en mode étendu */}
-        <AnimatePresence>
-          {expanded && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.4 }}
-              className="relative mt-3 overflow-hidden"
-            >
-              <div className="relative h-14">
-                {PALIERS.map((p) => {
-                  const position = (p.montant / PALIERS[PALIERS.length - 1].montant) * 100
-                  const est = getStatut(p)
-                  return (
-                    <div key={p.montant}
-                      className="absolute flex flex-col items-center gap-0.5"
-                      style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
-                    >
-                      <div className="w-px h-2" style={{ background: est !== 'locked' ? p.color : 'rgba(255,255,255,0.1)' }} />
-                      <span className="text-[10px] font-semibold whitespace-nowrap"
-                        style={{ color: est !== 'locked' ? p.color : 'rgba(255,255,255,0.2)' }}>
-                        {formatEur(p.montant)}
-                      </span>
-                      <span className="text-[9px] whitespace-nowrap"
-                        style={{ color: est !== 'locked' ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.15)' }}>
-                        {p.nom.split(' ').slice(0, 2).join(' ')}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Glow sous la barre qui suit le fill */}
+        <motion.div
+          initial={{ width: 0, opacity: 0 }}
+          animate={{ width: `${progressPct}%`, opacity: 1 }}
+          transition={{ duration: 3, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="absolute -bottom-3 left-0 h-6 rounded-full pointer-events-none"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${glow.replace('0.5', '0.5')})`,
+            filter: 'blur(10px)',
+          }}
+        />
+      </div>
 
-        {/* Légende simple */}
-        {!expanded && (
-          <div className="flex justify-between mt-2 text-xs text-white/20">
-            <span>0 €</span>
-            {PALIERS.slice(0, -1).map((p) => (
-              <span key={p.montant} style={{ color: getStatut(p) !== 'locked' ? `${p.color}80` : undefined }}>
-                {p.montant >= 1000 ? `${p.montant / 1000}k` : p.montant}
-              </span>
-            ))}
-            <span>100k €</span>
-          </div>
-        )}
-      </motion.div>
+      <div className="flex justify-between mt-4 text-xs text-white/25 font-medium">
+        <span>0 €</span>
+        <span style={{ color: `${toColor}90` }}>{progressPct.toFixed(1)}%</span>
+        <span>100 000 €</span>
+      </div>
     </motion.div>
   )
 }
@@ -353,8 +301,15 @@ function CarCard({ palier, statut, montantActuel, index }: {
   index: number
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
   const [imgOk, setImgOk] = useState(false)
+
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setImgOk(true)
+    }
+  }, [])
 
   const restant = Math.max(0, palier.montant - montantActuel)
   const pctCard = statut === 'current'
@@ -381,6 +336,7 @@ function CarCard({ palier, statut, montantActuel, index }: {
         <img
           src={palier.image}
           alt={palier.nom}
+          ref={imgRef}
           className={`w-full h-full object-contain object-right-bottom transition-all ${imgOk ? (statut === 'locked' ? 'opacity-30 grayscale' : 'opacity-80 drop-shadow-lg') : 'opacity-0'}`}
           onLoad={() => setImgOk(true)}
           onError={() => setImgOk(false)}
@@ -487,7 +443,10 @@ export default function ObjectifsPage() {
       const benefice = Math.max(0, ca - achats - fraisVente - fraisCommandeTotal - abonnementsTotal)
       setMontantActuel(benefice)
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(() => {
+      toast.error('Impossible de charger les données')
+      setLoading(false)
+    })
   }, [])
 
   const MAX = PALIERS[PALIERS.length - 1].montant
@@ -540,6 +499,26 @@ export default function ObjectifsPage() {
           0% { box-shadow: 0 0 20px rgba(234,179,8,0.3), 0 0 60px rgba(234,179,8,0.1); }
           50% { box-shadow: 0 0 40px rgba(234,179,8,0.6), 0 0 100px rgba(234,179,8,0.2); }
           100% { box-shadow: 0 0 20px rgba(234,179,8,0.3), 0 0 60px rgba(234,179,8,0.1); }
+        }
+        @keyframes shimmer-fast {
+          0% { transform: translateX(-100%) skewX(-12deg); }
+          100% { transform: translateX(400%) skewX(-12deg); }
+        }
+        @keyframes shimmer-slow {
+          0% { transform: translateX(-200%) skewX(-12deg); }
+          100% { transform: translateX(500%) skewX(-12deg); }
+        }
+        @keyframes tipPulse {
+          0%, 100% { opacity: 1; width: 4px; filter: blur(0px); }
+          50% { opacity: 0.6; width: 12px; filter: blur(4px); }
+        }
+        @keyframes barGlow {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+        @keyframes trackBreath {
+          0%, 100% { box-shadow: inset 0 2px 10px rgba(0,0,0,0.6); }
+          50% { box-shadow: inset 0 2px 20px rgba(0,0,0,0.8); }
         }
       `}</style>
 
@@ -620,7 +599,6 @@ export default function ObjectifsPage() {
             progressPct={progressPct}
             palierActuel={palierActuel}
             palierPrecedent={palierPrecedent}
-            getStatut={getStatut}
           />
 
           {/* ── PROCHAIN OBJECTIF (FEATURED) ─────────────────────────────── */}

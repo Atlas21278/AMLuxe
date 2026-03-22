@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { Toaster } from 'sonner'
 import Sidebar from './Sidebar'
 import NavigationProgress from './ui/NavigationProgress'
 
@@ -13,8 +14,17 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     return <>{children}</>
   }
 
+
+
   return (
     <div className="flex min-h-screen">
+      <Toaster
+        position="bottom-right"
+        theme="dark"
+        toastOptions={{
+          style: { background: '#1a1a26', border: '1px solid rgba(255,255,255,0.08)', color: '#fff' },
+        }}
+      />
       <NavigationProgress />
       {/* Overlay mobile */}
       <div

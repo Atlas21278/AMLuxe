@@ -5,7 +5,8 @@ import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import FormulaireVente from '@/components/articles/FormulaireVente'
-import Toast from '@/components/ui/Toast'
+import FormulaireArticle from '@/components/articles/FormulaireArticle'
+import { toast } from 'sonner'
 import type { Article } from '@prisma/client'
 
 type ArticleAvecCommande = Article & { commande: { fournisseur: string; id: number; _count: { frais: number } } }
@@ -18,16 +19,21 @@ export default function ArticlesPage() {
   const [search, setSearch] = useState('')
   const [filtreStatut, setFiltreStatut] = useState('tous')
   const [venteArticle, setVenteArticle] = useState<Article | null>(null)
-  const [showVenteError, setShowVenteError] = useState(false)
+  const [editArticle, setEditArticle] = useState<Article | null>(null)
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 10
 
   const fetchArticles = async () => {
-    const res = await fetch('/api/articles')
-    if (!res.ok) { setLoading(false); return }
-    const data = await res.json()
-    setArticles(data)
-    setLoading(false)
+    try {
+      const res = await fetch('/api/articles')
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setArticles(data)
+    } catch {
+      toast.error('Impossible de charger les articles')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { fetchArticles() }, [])
@@ -146,9 +152,17 @@ export default function ArticlesPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditArticle(article)}
+                        className="p-1.5 rounded transition-colors text-white/25 hover:text-white hover:bg-white/10"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
                       {article.statut !== 'Vendu' && (
                         <button
-                          onClick={() => article.commande._count.frais > 0 ? setVenteArticle(article) : setShowVenteError(true)}
+                          onClick={() => article.commande._count.frais > 0 ? setVenteArticle(article) : toast.error('Ajoutez d\'abord les frais & taxes sur la commande')}
                           className={`p-1.5 rounded transition-colors ${article.commande._count.frais === 0 ? 'text-white/20 hover:text-amber-400 hover:bg-amber-500/10' : 'hover:bg-green-500/10 text-white/40 hover:text-green-400'}`}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -211,9 +225,18 @@ export default function ArticlesPage() {
                     <td className="px-4 py-3.5"><Badge statut={article.statut} /></td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setEditArticle(article)}
+                          className="p-1.5 rounded hover:bg-white/10 text-white/25 hover:text-white transition-colors"
+                          title="Modifier l'article"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
                         {article.statut !== 'Vendu' && (
                           <button
-                            onClick={() => article.commande._count.frais > 0 ? setVenteArticle(article) : setShowVenteError(true)}
+                            onClick={() => article.commande._count.frais > 0 ? setVenteArticle(article) : toast.error('Ajoutez d\'abord les frais & taxes sur la commande')}
                             className={`p-1.5 rounded transition-colors ${article.commande._count.frais === 0 ? 'text-white/20 hover:text-amber-400 hover:bg-amber-500/10' : 'hover:bg-green-500/10 text-white/40 hover:text-green-400'}`}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -257,18 +280,18 @@ export default function ArticlesPage() {
         </div>
       )}
 
+      {editArticle && (
+        <Modal title="Modifier l'article" onClose={() => setEditArticle(null)}>
+          <FormulaireArticle commandeId={editArticle.commandeId} article={editArticle} onClose={() => { setEditArticle(null); fetchArticles() }} />
+        </Modal>
+      )}
+
       {venteArticle && (
         <Modal title="Vente / Mise en vente" onClose={() => setVenteArticle(null)}>
           <FormulaireVente article={venteArticle} onClose={() => { setVenteArticle(null); fetchArticles() }} />
         </Modal>
       )}
 
-      {showVenteError && (
-        <Toast
-          message="Ajoutez d'abord les frais & taxes sur la commande"
-          onClose={() => setShowVenteError(false)}
-        />
-      )}
     </div>
   )
 }

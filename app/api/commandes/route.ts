@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export async function GET() {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+
   const commandes = await prisma.commande.findMany({
     include: { articles: true, frais: true },
     orderBy: { createdAt: 'desc' },
@@ -10,7 +15,15 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+
   const body = await req.json()
+
+  if (!body.fournisseur?.trim()) {
+    return NextResponse.json({ error: 'Fournisseur requis' }, { status: 400 })
+  }
+
   const articles: { marque: string; modele: string; prixAchat: number; etat: string; refFournisseur?: string }[] = body.articles ?? []
   const frais: { type: string; montant: number; description?: string }[] = body.frais ?? []
 
@@ -25,7 +38,7 @@ export async function POST(req: NextRequest) {
         create: articles.map((a) => ({
           marque: a.marque,
           modele: a.modele,
-          prixAchat: Number(a.prixAchat),
+          prixAchat: Math.max(0, Number(a.prixAchat) || 0),
           etat: a.etat,
           refFournisseur: a.refFournisseur || null,
           statut: 'En stock',
@@ -34,7 +47,7 @@ export async function POST(req: NextRequest) {
       frais: frais.length > 0 ? {
         create: frais.map((f) => ({
           type: f.type,
-          montant: Number(f.montant),
+          montant: Math.max(0, Number(f.montant) || 0),
           description: f.description || null,
         })),
       } : undefined,

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
 import type { Article } from '@prisma/client'
-
-const ETATS = ['Neuf', 'Très bon état', 'Bon état', 'Satisfaisant']
-const STATUTS = ['En stock', 'En vente', 'Vendu']
+import Combobox from '@/components/ui/Combobox'
+import { MARQUES, getModeles } from '@/data/marques'
+import { ETATS, STATUTS_ARTICLE } from '@/constants/statuts'
 
 interface Props {
   commandeId: number
@@ -29,19 +30,18 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     startTransition(async () => {
-      if (isEdit) {
-        await fetch(`/api/articles/${article.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...form, commandeId }),
-        })
-      } else {
-        await fetch('/api/articles', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...form, commandeId }),
-        })
+      const url = isEdit ? `/api/articles/${article.id}` : '/api/articles'
+      const method = isEdit ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, commandeId }),
+      })
+      if (!res.ok) {
+        toast.error(isEdit ? 'Erreur lors de la modification' : "Erreur lors de l'ajout")
+        return
       }
+      toast.success(isEdit ? 'Article modifié' : 'Article ajouté')
       onClose()
     })
   }
@@ -53,11 +53,22 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-white/60 mb-1.5">Marque *</label>
-          <input type="text" required placeholder="Hermès, Chanel..." value={form.marque} onChange={(e) => setForm({ ...form, marque: e.target.value })} className={inputClass} />
+          <Combobox
+            options={MARQUES}
+            value={form.marque}
+            onChange={(v) => setForm({ ...form, marque: v, modele: '' })}
+            placeholder="Hermès, Chanel..."
+          />
         </div>
         <div>
           <label className="block text-xs font-medium text-white/60 mb-1.5">Modèle *</label>
-          <input type="text" required placeholder="Birkin 30, CF..." value={form.modele} onChange={(e) => setForm({ ...form, modele: e.target.value })} className={inputClass} />
+          <Combobox
+            options={getModeles(form.marque)}
+            value={form.modele}
+            onChange={(v) => setForm({ ...form, modele: v })}
+            placeholder={form.marque ? 'Choisir un modèle...' : 'Sélectionnez une marque'}
+            disabled={!form.marque}
+          />
         </div>
       </div>
 
@@ -82,7 +93,7 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
         <div>
           <label className="block text-xs font-medium text-white/60 mb-1.5">Statut</label>
           <select value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })} className={inputClass}>
-            {STATUTS.map((s) => <option key={s} value={s}>{s}</option>)}
+            {STATUTS_ARTICLE.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
       </div>
@@ -95,7 +106,7 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-lg border border-white/10 text-sm text-white/60 hover:bg-white/5 transition-colors">Annuler</button>
         <button type="submit" disabled={isPending} className="flex-1 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-sm font-medium text-white transition-colors">
-          {isPending ? 'Enregistrement...' : isEdit ? 'Modifier' : 'Ajouter l\'article'}
+          {isPending ? 'Enregistrement...' : isEdit ? 'Modifier' : "Ajouter l'article"}
         </button>
       </div>
     </form>

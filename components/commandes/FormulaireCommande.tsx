@@ -27,6 +27,7 @@ interface Props {
     tracking: string | null
     notes: string | null
   }
+  fournisseurs?: string[]
   onClose: () => void
 }
 
@@ -44,7 +45,7 @@ const articleVide = (): ArticleRow => ({
 
 const fraisVide = (): FraisRow => ({ type: 'Douane', montant: '', description: '' })
 
-export default function FormulaireCommande({ commande, onClose }: Props) {
+export default function FormulaireCommande({ commande, fournisseurs = [], onClose }: Props) {
   const [isPending, startTransition] = useTransition()
   const isEdit = !!commande
 
@@ -120,7 +121,14 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
           value={form.fournisseur}
           onChange={(e) => setForm({ ...form, fournisseur: e.target.value })}
           className={inputClass}
+          list="fournisseurs-suggestions"
+          autoComplete="off"
         />
+        {fournisseurs.length > 0 && (
+          <datalist id="fournisseurs-suggestions">
+            {fournisseurs.map((f) => <option key={f} value={f} />)}
+          </datalist>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">

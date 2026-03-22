@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-
-const TYPES_FRAIS = ['Douane', 'Livraison', 'Autre']
+import { toast } from 'sonner'
+import { TYPES_FRAIS } from '@/constants/statuts'
 
 interface Props {
   commandeId: number
@@ -20,11 +20,16 @@ export default function FormulaireFrais({ commandeId, onClose }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     startTransition(async () => {
-      await fetch('/api/frais', {
+      const res = await fetch('/api/frais', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, commandeId }),
       })
+      if (!res.ok) {
+        toast.error('Erreur lors de l\'ajout des frais')
+        return
+      }
+      toast.success('Frais ajoutés')
       onClose()
     })
   }
@@ -47,7 +52,7 @@ export default function FormulaireFrais({ commandeId, onClose }: Props) {
       </div>
       <div>
         <label className="block text-xs font-medium text-white/60 mb-1.5">Description</label>
-        <input type="text" placeholder="Détails..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={inputClass} />
+        <input type="text" placeholder="Ex : Douane DHL, frais Chronopost..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={inputClass} />
       </div>
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-lg border border-white/10 text-sm text-white/60 hover:bg-white/5 transition-colors">Annuler</button>

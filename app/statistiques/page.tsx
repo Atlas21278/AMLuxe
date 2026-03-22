@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { toast } from 'sonner'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line,
@@ -18,42 +19,49 @@ export default function StatistiquesPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/articles').then((r) => r.ok ? r.json() : []),
+      fetch('/api/articles').then((r) => r.ok ? r.json() : Promise.reject()),
       fetch('/api/abonnements').then((r) => r.ok ? r.json() : []),
     ]).then(([arts, abonnements]: [ArticleAvecCommande[], { montant: number }[]]) => {
       setArticles(Array.isArray(arts) ? arts : [])
       setCoutAbonnementTotal(abonnements.reduce((sum, a) => sum + a.montant, 0))
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(() => {
+      toast.error('Impossible de charger les statistiques')
+      setLoading(false)
+    })
   }, [])
 
-  const vendus = articles.filter((a) => a.statut === 'Vendu' && a.prixVenteReel)
-  const enStock = articles.filter((a) => a.statut === 'En stock' || a.statut === 'En vente')
+  const vendus = useMemo(() => articles.filter((a) => a.statut === 'Vendu' && a.prixVenteReel), [articles])
+  const enStock = useMemo(() => articles.filter((a) => a.statut === 'En stock' || a.statut === 'En vente'), [articles])
 
   // KPIs globaux
-  const caTotal = vendus.reduce((acc, a) => acc + (a.prixVenteReel ?? 0), 0)
-  const fraisVenteTotal = vendus.reduce((acc, a) => acc + (a.fraisVente ?? 0), 0)
-  const coutAchatTotal = vendus.reduce((acc, a) => acc + a.prixAchat, 0)
+  const caTotal = useMemo(() => vendus.reduce((acc, a) => acc + (a.prixVenteReel ?? 0), 0), [vendus])
+  const fraisVenteTotal = useMemo(() => vendus.reduce((acc, a) => acc + (a.fraisVente ?? 0), 0), [vendus])
+  const coutAchatTotal = useMemo(() => vendus.reduce((acc, a) => acc + a.prixAchat, 0), [vendus])
 
   // Frais commande (douane, livraison) — on prend toutes les commandes qui ont au moins un article vendu
-  const commandesAvecVente = new Set(vendus.map((a) => a.commandeId))
-  const fraisCommandeTotal = articles
-    .filter((a) => commandesAvecVente.has(a.commandeId))
-    .reduce((acc, a, _, arr) => {
-      // Dédupliquer par commande
-      const dejaPris = arr.slice(0, arr.indexOf(a)).some((b) => b.commandeId === a.commandeId)
-      if (dejaPris) return acc
-      return acc + a.commande.frais.reduce((s, f) => s + f.montant, 0)
-    }, 0)
+  const fraisCommandeTotal = useMemo(() => {
+    const commandesAvecVente = new Set(vendus.map((a) => a.commandeId))
+    return articles
+      .filter((a) => commandesAvecVente.has(a.commandeId))
+      .reduce((acc, a, _, arr) => {
+        const dejaPris = arr.slice(0, arr.indexOf(a)).some((b) => b.commandeId === a.commandeId)
+        if (dejaPris) return acc
+        return acc + a.commande.frais.reduce((s, f) => s + f.montant, 0)
+      }, 0)
+  }, [vendus, articles])
 
-  const beneficeTotal = caTotal - fraisVenteTotal - coutAchatTotal - fraisCommandeTotal - coutAbonnementTotal
+  const beneficeTotal = useMemo(
+    () => caTotal - fraisVenteTotal - coutAchatTotal - fraisCommandeTotal - coutAbonnementTotal,
+    [caTotal, fraisVenteTotal, coutAchatTotal, fraisCommandeTotal, coutAbonnementTotal]
+  )
   const margeGlobale = caTotal > 0 ? ((beneficeTotal / caTotal) * 100).toFixed(1) : '0'
 
   // Valeur stock
-  const valeurStock = enStock.reduce((acc, a) => acc + a.prixAchat, 0)
+  const valeurStock = useMemo(() => enStock.reduce((acc, a) => acc + a.prixAchat, 0), [enStock])
 
   // Par marque
-  const parMarque = Object.values(
+  const parMarque = useMemo(() => Object.values(
     vendus.reduce<Record<string, { marque: string; ca: number; benefice: number; nb: number }>>((acc, a) => {
       if (!acc[a.marque]) acc[a.marque] = { marque: a.marque, ca: 0, benefice: 0, nb: 0 }
       acc[a.marque].ca += a.prixVenteReel ?? 0
@@ -61,10 +69,10 @@ export default function StatistiquesPage() {
       acc[a.marque].nb += 1
       return acc
     }, {})
-  ).sort((a, b) => b.benefice - a.benefice)
+  ).sort((a, b) => b.benefice - a.benefice), [vendus])
 
   // Par plateforme — CA + nb
-  const parPlateforme = Object.values(
+  const parPlateforme = useMemo(() => Object.values(
     vendus.reduce<Record<string, { name: string; nb: number; ca: number }>>((acc, a) => {
       const p = a.plateforme ?? 'Autre'
       if (!acc[p]) acc[p] = { name: p, nb: 0, ca: 0 }
@@ -72,22 +80,36 @@ export default function StatistiquesPage() {
       acc[p].ca += a.prixVenteReel ?? 0
       return acc
     }, {})
-  ).sort((a, b) => b.ca - a.ca)
+  ).sort((a, b) => b.ca - a.ca), [vendus])
+
+  // Par fournisseur
+  const parFournisseur = useMemo(() => Object.values(
+    vendus.reduce<Record<string, { fournisseur: string; nb: number; ca: number; benefice: number }>>((acc, a) => {
+      const f = a.commande.fournisseur
+      if (!acc[f]) acc[f] = { fournisseur: f, nb: 0, ca: 0, benefice: 0 }
+      acc[f].nb += 1
+      acc[f].ca += a.prixVenteReel ?? 0
+      acc[f].benefice += (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat
+      return acc
+    }, {})
+  ).sort((a, b) => b.ca - a.ca), [vendus])
 
   // Evolution mensuelle
-  const parMoisMap = vendus.reduce<Record<string, { mois: string; ca: number; benefice: number }>>((acc, a) => {
-    if (!a.dateVente) return acc
-    const d = new Date(a.dateVente)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    const label = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
-    if (!acc[key]) acc[key] = { mois: label, ca: 0, benefice: 0 }
-    acc[key].ca += a.prixVenteReel ?? 0
-    acc[key].benefice += (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat
-    return acc
-  }, {})
-  const parMois = Object.entries(parMoisMap)
-    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-    .map(([, val]) => val)
+  const parMois = useMemo(() => {
+    const parMoisMap = vendus.reduce<Record<string, { mois: string; ca: number; benefice: number }>>((acc, a) => {
+      if (!a.dateVente) return acc
+      const d = new Date(a.dateVente)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      const label = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+      if (!acc[key]) acc[key] = { mois: label, ca: 0, benefice: 0 }
+      acc[key].ca += a.prixVenteReel ?? 0
+      acc[key].benefice += (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat
+      return acc
+    }, {})
+    return Object.entries(parMoisMap)
+      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+      .map(([, val]) => val)
+  }, [vendus])
 
   if (loading) return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -165,7 +187,7 @@ export default function StatistiquesPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="mois" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: '#1a1a26', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff' }} formatter={(v: number) => [`${v.toFixed(2)} €`]} />
+                <Tooltip contentStyle={{ background: '#1a1a26', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff' }} formatter={(v) => [`${Number(v).toFixed(2)} €`]} />
                 <Line type="monotone" dataKey="ca" name="CA (€)" stroke="#a855f7" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="benefice" name="Bénéfice brut (€)" stroke="#10b981" strokeWidth={2} dot={false} />
               </LineChart>
@@ -208,7 +230,7 @@ export default function StatistiquesPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                 <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v} €`} />
                 <YAxis type="category" dataKey="marque" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
-                <Tooltip contentStyle={{ background: '#1a1a26', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff' }} formatter={(v: number) => [`${v.toFixed(2)} €`, 'Bénéfice brut']} />
+                <Tooltip contentStyle={{ background: '#1a1a26', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff' }} formatter={(v) => [`${Number(v).toFixed(2)} €`, 'Bénéfice brut']} />
                 <Bar dataKey="benefice" name="Bénéfice brut (€)" fill="#a855f7" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -244,6 +266,39 @@ export default function StatistiquesPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Tableau par fournisseur */}
+          {parFournisseur.length > 0 && (
+            <div className="sm:col-span-2 bg-white/3 border border-white/5 rounded-xl overflow-hidden overflow-x-auto">
+              <div className="px-5 py-4 border-b border-white/5">
+                <h2 className="text-sm font-semibold text-white">Performance par fournisseur</h2>
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    <th className="text-left px-4 py-3 text-xs text-white/40 uppercase">Fournisseur</th>
+                    <th className="text-right px-4 py-3 text-xs text-white/40 uppercase">Pièces vendues</th>
+                    <th className="text-right px-4 py-3 text-xs text-white/40 uppercase">CA</th>
+                    <th className="text-right px-4 py-3 text-xs text-white/40 uppercase">Bénéfice brut</th>
+                    <th className="text-right px-4 py-3 text-xs text-white/40 uppercase">Marge brute</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parFournisseur.map((f) => (
+                    <tr key={f.fournisseur} className="border-b border-white/5 hover:bg-white/2">
+                      <td className="px-4 py-3 font-medium text-white">{f.fournisseur}</td>
+                      <td className="px-4 py-3 text-right text-white/60">{f.nb}</td>
+                      <td className="px-4 py-3 text-right text-white">{f.ca.toFixed(0)} €</td>
+                      <td className={`px-4 py-3 text-right font-medium ${f.benefice >= 0 ? 'text-green-400' : 'text-red-400'}`}>{f.benefice.toFixed(0)} €</td>
+                      <td className={`px-4 py-3 text-right text-sm ${f.ca > 0 && (f.benefice / f.ca * 100) >= 20 ? 'text-green-400' : 'text-yellow-400'}`}>
+                        {f.ca > 0 ? `${(f.benefice / f.ca * 100).toFixed(1)}%` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

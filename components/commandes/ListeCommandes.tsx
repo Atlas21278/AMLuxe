@@ -19,12 +19,7 @@ type SortDir = 'asc' | 'desc'
 
 const PAGE_SIZE = 10
 
-const STATUTS_OPTIONS = [
-  { value: 'tous', label: 'Tous les statuts' },
-  { value: 'En préparation', label: 'En préparation' },
-  { value: 'En livraison', label: 'En livraison' },
-  { value: 'Reçue', label: 'Reçue' },
-]
+const FILTRES_STATUT = ['tous', 'En préparation', 'En livraison', 'Reçue']
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   return (
@@ -102,7 +97,11 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
 
   const handleDeleteSelection = () => {
     startTransition(async () => {
-      await Promise.all([...selection].map((id) => fetch(`/api/commandes/${id}`, { method: 'DELETE' })))
+      await fetch('/api/commandes/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [...selection] }),
+      })
       setSelection(new Set())
       setDeleteSelection(false)
       onRefresh()
@@ -138,20 +137,16 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
           />
         </div>
 
-        <div className="relative">
-          <select
-            value={filtreStatut}
-            onChange={(e) => { setFiltreStatut(e.target.value); setPage(1) }}
-            style={{ backgroundColor: '#1a1a26', colorScheme: 'dark' }}
-            className="appearance-none pl-3 pr-8 py-2 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60 cursor-pointer"
-          >
-            {STATUTS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value} style={{ backgroundColor: '#1a1a26' }}>{o.label}</option>
-            ))}
-          </select>
-          <svg xmlns="http://www.w3.org/2000/svg" className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+        <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1">
+          {FILTRES_STATUT.map((f) => (
+            <button
+              key={f}
+              onClick={() => { setFiltreStatut(f); setPage(1) }}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${filtreStatut === f ? 'bg-purple-600 text-white' : 'text-white/50 hover:text-white'}`}
+            >
+              {f === 'tous' ? 'Tous' : f}
+            </button>
+          ))}
         </div>
 
         {selection.size > 0 && (

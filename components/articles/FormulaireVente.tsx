@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
 import type { Article } from '@prisma/client'
-
-const PLATEFORMES = ['Vinted', 'Leboncoin', 'Instagram', 'Vestiaire Collective', 'Autre']
+import { PLATEFORMES } from '@/constants/statuts'
 
 interface Props {
   article: Article
@@ -19,7 +19,9 @@ export default function FormulaireVente({ article, onClose }: Props) {
     plateforme: article.plateforme ?? 'Vinted',
     prixVenteReel: article.prixVenteReel?.toString() ?? '',
     fraisVente: article.fraisVente?.toString() ?? '',
-    dateVente: article.dateVente ? new Date(article.dateVente).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    dateVente: article.dateVente
+      ? new Date(article.dateVente).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0],
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -48,11 +50,16 @@ export default function FormulaireVente({ article, onClose }: Props) {
         data.dateVente = form.dateVente
       }
 
-      await fetch(`/api/articles/${article.id}`, {
+      const res = await fetch(`/api/articles/${article.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
+      if (!res.ok) {
+        toast.error('Erreur lors de la mise à jour')
+        return
+      }
+      toast.success(mode === 'vente' ? 'Article mis en vente' : 'Vente enregistrée')
       onClose()
     })
   }
@@ -66,7 +73,7 @@ export default function FormulaireVente({ article, onClose }: Props) {
         <p className="text-xs text-white/40 mt-0.5">Achat : {article.prixAchat.toFixed(2)} €</p>
       </div>
 
-      {/* Toggle mode */}
+      {/* Toggle mode — masqué si déjà en vente (on passe direct à "vendu") */}
       {article.statut !== 'En vente' && (
         <div className="flex gap-2 mb-5">
           {(['vente', 'vendu'] as const).map((m) => (
@@ -89,8 +96,15 @@ export default function FormulaireVente({ article, onClose }: Props) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-white/60 mb-1.5">Prix de vente affiché (€)</label>
-            <input type="number" step="0.01" min="0" placeholder="0.00" value={form.prixVente} onChange={(e) => setForm({ ...form, prixVente: e.target.value })} className={inputClass} />
+            <label className="block text-xs font-medium text-white/60 mb-1.5">
+              Prix {mode === 'vente' ? 'annoncé' : 'affiché'} (€)
+            </label>
+            <input
+              type="number" step="0.01" min="0" placeholder="0.00"
+              value={form.prixVente}
+              onChange={(e) => setForm({ ...form, prixVente: e.target.value })}
+              className={inputClass}
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-white/60 mb-1.5">Plateforme *</label>
@@ -100,16 +114,27 @@ export default function FormulaireVente({ article, onClose }: Props) {
           </div>
         </div>
 
-        {(mode === 'vendu' || article.statut === 'En vente') && (
+        {/* Champs vente finale — uniquement si mode "vendu" */}
+        {mode === 'vendu' && (
           <>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-white/60 mb-1.5">Prix de vente réel (€) *</label>
-                <input type="number" step="0.01" min="0" required placeholder="0.00" value={form.prixVenteReel} onChange={(e) => setForm({ ...form, prixVenteReel: e.target.value })} className={inputClass} />
+                <label className="block text-xs font-medium text-white/60 mb-1.5">Prix encaissé (€) *</label>
+                <input
+                  type="number" step="0.01" min="0" required placeholder="0.00"
+                  value={form.prixVenteReel}
+                  onChange={(e) => setForm({ ...form, prixVenteReel: e.target.value })}
+                  className={inputClass}
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-white/60 mb-1.5">Frais de vente (€)</label>
-                <input type="number" step="0.01" min="0" placeholder="0.00" value={form.fraisVente} onChange={(e) => setForm({ ...form, fraisVente: e.target.value })} className={inputClass} />
+                <input
+                  type="number" step="0.01" min="0" placeholder="0.00"
+                  value={form.fraisVente}
+                  onChange={(e) => setForm({ ...form, fraisVente: e.target.value })}
+                  className={inputClass}
+                />
               </div>
             </div>
             <div>

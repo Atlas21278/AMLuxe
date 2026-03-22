@@ -144,7 +144,11 @@ export default function UtilisateursPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-white/60">{user.email}</td>
                     <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                      <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${
+                        user.role === 'admin'
+                          ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                          : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                      }`}>
                         {user.role}
                       </span>
                     </td>
