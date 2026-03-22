@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Combobox from '@/components/ui/Combobox'
+import { MARQUES, getModeles } from '@/data/marques'
 
 interface ArticleRow {
   marque: string
@@ -193,19 +195,21 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-medium text-white/30 w-5 shrink-0">#{index + 1}</span>
                   <div className="flex-1 grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      placeholder="Marque"
+                    <Combobox
+                      options={MARQUES}
                       value={article.marque}
-                      onChange={(e) => updateArticle(index, 'marque', e.target.value)}
-                      className="bg-transparent border border-white/10 rounded-md px-2.5 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-purple-500/60 transition-colors"
+                      onChange={(val) => {
+                        updateArticle(index, 'marque', val)
+                        updateArticle(index, 'modele', '')
+                      }}
+                      placeholder="Marque"
                     />
-                    <input
-                      type="text"
-                      placeholder="Modèle"
+                    <Combobox
+                      options={getModeles(article.marque)}
                       value={article.modele}
-                      onChange={(e) => updateArticle(index, 'modele', e.target.value)}
-                      className="bg-transparent border border-white/10 rounded-md px-2.5 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-purple-500/60 transition-colors"
+                      onChange={(val) => updateArticle(index, 'modele', val)}
+                      placeholder="Modèle"
+                      disabled={!article.marque}
                     />
                   </div>
                   <button
