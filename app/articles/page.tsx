@@ -42,6 +42,18 @@ export default function ArticlesPage() {
 
   useEffect(() => { fetchArticles() }, [])
 
+  // T-075 — restaurer la position de scroll après navigation
+  useEffect(() => {
+    const saved = sessionStorage.getItem('scroll-articles')
+    if (saved) {
+      requestAnimationFrame(() => window.scrollTo(0, parseInt(saved)))
+      sessionStorage.removeItem('scroll-articles')
+    }
+    return () => {
+      sessionStorage.setItem('scroll-articles', String(window.scrollY))
+    }
+  }, [])
+
   const marquesDisponibles = [...new Set(articles.map((a) => a.marque))].sort()
   const plateformesDisponibles = [...new Set(articles.filter((a) => a.plateforme).map((a) => a.plateforme!))].sort()
 
@@ -95,18 +107,18 @@ export default function ArticlesPage() {
 
       {/* Filtres */}
       <div className="flex flex-col gap-3 mb-6">
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1 sm:max-w-xs">
             <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <input type="text" placeholder="Rechercher un article..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/60" />
+            <input type="text" placeholder="Rechercher un article..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/60" />
           </div>
           <select
             value={filtreMarque}
             onChange={(e) => { setFiltreMarque(e.target.value); setPage(1) }}
             style={{ backgroundColor: '#1a1a26', colorScheme: 'dark' }}
-            className="appearance-none px-3 py-2 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60 cursor-pointer"
+            className="w-full sm:w-auto appearance-none px-3 py-2.5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60 cursor-pointer"
           >
             <option value="toutes">Toutes les marques</option>
             {marquesDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -116,7 +128,7 @@ export default function ArticlesPage() {
               value={filtrePlateforme}
               onChange={(e) => { setFiltrePlateforme(e.target.value); setPage(1) }}
               style={{ backgroundColor: '#1a1a26', colorScheme: 'dark' }}
-              className="appearance-none px-3 py-2 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60 cursor-pointer"
+              className="w-full sm:w-auto appearance-none px-3 py-2.5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60 cursor-pointer"
             >
               <option value="toutes">Toutes les plateformes</option>
               {plateformesDisponibles.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -125,22 +137,25 @@ export default function ArticlesPage() {
           {(filtreMarque !== 'toutes' || filtrePlateforme !== 'toutes' || search) && (
             <button
               onClick={() => { setFiltreMarque('toutes'); setFiltrePlateforme('toutes'); setSearch(''); setPage(1) }}
-              className="px-3 py-2 text-xs text-white/40 hover:text-white border border-white/10 rounded-lg hover:bg-white/5 transition-colors"
+              className="w-full sm:w-auto px-3 py-2.5 text-xs text-white/40 hover:text-white border border-white/10 rounded-lg hover:bg-white/5 transition-colors"
             >
               Réinitialiser
             </button>
           )}
         </div>
-        <div className="flex flex-wrap gap-1 bg-white/5 border border-white/10 rounded-lg p-1 w-fit">
-          {FILTRES_STATUT.map((f) => (
-            <button
-              key={f}
-              onClick={() => { setFiltreStatut(f); setPage(1) }}
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${filtreStatut === f ? 'bg-purple-600 text-white' : 'text-white/50 hover:text-white'}`}
-            >
-              {f === 'tous' ? 'Tous' : f}
-            </button>
-          ))}
+        {/* T-072 : scroll horizontal sur mobile pour les 7 statuts */}
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1 w-max sm:w-fit">
+            {FILTRES_STATUT.map((f) => (
+              <button
+                key={f}
+                onClick={() => { setFiltreStatut(f); setPage(1) }}
+                className={`whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${filtreStatut === f ? 'bg-purple-600 text-white' : 'text-white/50 hover:text-white'}`}
+              >
+                {f === 'tous' ? 'Tous' : f}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -169,7 +184,7 @@ export default function ArticlesPage() {
                 ? ((article.prixVenteReel - (article.fraisVente ?? 0) - article.prixAchat) / article.prixAchat * 100).toFixed(0)
                 : null
               return (
-                <div key={article.id} className="px-4 py-3.5">
+                <div key={article.id} className="px-4 py-3.5 active:bg-white/5 transition-colors">
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <div>
                       <p className="font-medium text-white text-sm">{article.marque} {article.modele}</p>
@@ -301,20 +316,20 @@ export default function ArticlesPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4">
-          <p className="text-xs text-white/30">{filtered.length} article{filtered.length > 1 ? 's' : ''} — page {page}/{totalPages}</p>
+        <div className="flex items-center justify-between mt-4 gap-2">
+          <p className="text-xs text-white/30 shrink-0">{filtered.length} article{filtered.length > 1 ? 's' : ''} — p.{page}/{totalPages}</p>
           <div className="flex items-center gap-1">
-            <button onClick={() => setPage(1)} disabled={page === 1} className="px-2 py-1 text-xs rounded text-white/40 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed">«</button>
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-2 py-1 text-xs rounded text-white/40 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed">‹</button>
+            <button onClick={() => setPage(1)} disabled={page === 1} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md text-sm text-white/40 hover:text-white hover:bg-white/5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">«</button>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md text-sm text-white/40 hover:text-white hover:bg-white/5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">‹</button>
             {pageNumbers.map((p, i) =>
               p === '...' ? (
-                <span key={`ellipsis-${i}`} className="px-2 py-1 text-xs text-white/20">…</span>
+                <span key={`ellipsis-${i}`} className="min-w-[36px] flex items-center justify-center text-xs text-white/20">…</span>
               ) : (
-                <button key={p} onClick={() => setPage(p as number)} className={`px-2.5 py-1 text-xs rounded transition-colors ${page === p ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white'}`}>{p}</button>
+                <button key={p} onClick={() => setPage(p as number)} className={`min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md text-sm font-medium transition-colors ${page === p ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>{p}</button>
               )
             )}
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-2 py-1 text-xs rounded text-white/40 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed">›</button>
-            <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="px-2 py-1 text-xs rounded text-white/40 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed">»</button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md text-sm text-white/40 hover:text-white hover:bg-white/5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">›</button>
+            <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md text-sm text-white/40 hover:text-white hover:bg-white/5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">»</button>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Badge from '@/components/ui/Badge'
@@ -45,6 +45,18 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selection, setSelection] = useState<Set<number>>(new Set())
   const [page, setPage] = useState(1)
+
+  // T-075 — restaurer la position de scroll après navigation arrière
+  useEffect(() => {
+    const saved = sessionStorage.getItem('scroll-commandes')
+    if (saved) {
+      requestAnimationFrame(() => window.scrollTo(0, parseInt(saved)))
+      sessionStorage.removeItem('scroll-commandes')
+    }
+    return () => {
+      sessionStorage.setItem('scroll-commandes', String(window.scrollY))
+    }
+  }, [])
 
   const handleSort = (key: SortKey) => {
     setSortKey(key)
@@ -171,32 +183,34 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
               className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/30"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={dateDebut}
-              onChange={(e) => { setDateDebut(e.target.value); setPage(1) }}
-              style={{ backgroundColor: '#1a1a26', colorScheme: 'dark' }}
-              className="px-3 py-2 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60"
-              title="Date de début"
-            />
-            <span className="text-white/30 text-xs">→</span>
-            <input
-              type="date"
-              value={dateFin}
-              onChange={(e) => { setDateFin(e.target.value); setPage(1) }}
-              style={{ backgroundColor: '#1a1a26', colorScheme: 'dark' }}
-              className="px-3 py-2 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60"
-              title="Date de fin"
-            />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={dateDebut}
+                onChange={(e) => { setDateDebut(e.target.value); setPage(1) }}
+                style={{ backgroundColor: '#1a1a26', colorScheme: 'dark' }}
+                className="flex-1 sm:flex-none px-3 py-2.5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60 min-w-0"
+                title="Date de début"
+              />
+              <span className="text-white/30 text-xs shrink-0">→</span>
+              <input
+                type="date"
+                value={dateFin}
+                onChange={(e) => { setDateFin(e.target.value); setPage(1) }}
+                style={{ backgroundColor: '#1a1a26', colorScheme: 'dark' }}
+                className="flex-1 sm:flex-none px-3 py-2.5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60 min-w-0"
+                title="Date de fin"
+              />
+            </div>
             {(dateDebut || dateFin) && (
-              <button onClick={() => { setDateDebut(''); setDateFin(''); setPage(1) }} className="text-xs text-white/40 hover:text-white transition-colors px-2">✕</button>
+              <button onClick={() => { setDateDebut(''); setDateFin(''); setPage(1) }} className="text-xs text-white/40 hover:text-white transition-colors px-2 py-1 self-center">✕ Effacer dates</button>
             )}
           </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1">
+          <div className="flex flex-wrap gap-1 bg-white/5 border border-white/10 rounded-lg p-1 max-w-full overflow-hidden">
             {FILTRES_STATUT.map((f) => (
               <button
                 key={f}
@@ -247,7 +261,7 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
                 <div
                   key={commande.id}
                   onClick={() => router.push(`/commandes/${commande.id}`)}
-                  className="px-4 py-3.5 active:bg-white/5 cursor-pointer"
+                  className="px-4 py-3.5 active:bg-white/5 active:scale-[0.99] transition-transform cursor-pointer"
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <p className="font-medium text-white text-sm">{commande.fournisseur}</p>

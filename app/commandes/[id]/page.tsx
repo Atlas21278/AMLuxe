@@ -111,7 +111,7 @@ export default function CommandeDetailPage() {
   return (
     <div className="page-enter p-4 sm:p-6 lg:p-8">
       {/* Header avec breadcrumb */}
-      <div className="flex items-center gap-4 mb-6 sm:mb-8">
+      <div className="sticky top-0 z-10 bg-[#0f0f13] flex items-center gap-4 mb-6 sm:mb-8 py-3 sm:py-0 sm:static sm:bg-transparent -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-white/5 sm:border-0">
         <Link href="/commandes" className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -125,23 +125,23 @@ export default function CommandeDetailPage() {
             <span className="text-white/50">{commande.fournisseur}</span>
           </p>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white">{commande.fournisseur}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-white">{commande.fournisseur}</h1>
             <Badge statut={commande.statut} />
           </div>
           <p className="text-sm text-white/40 mt-0.5">
             {new Date(commande.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-            {commande.tracking && (
-              <a
-                href={`https://www.laposte.fr/outils/suivre-vos-envois?code=${commande.tracking}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ml-3 font-mono hover:text-purple-400 underline underline-offset-2 transition-colors"
-                title="Suivre le colis"
-              >
-                {commande.tracking}
-              </a>
-            )}
           </p>
+          {commande.tracking && (
+            <a
+              href={`https://www.laposte.fr/outils/suivre-vos-envois?code=${commande.tracking}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-mono text-white/40 hover:text-purple-400 underline underline-offset-2 transition-colors"
+              title="Suivre le colis"
+            >
+              {commande.tracking}
+            </a>
+          )}
         </div>
       </div>
 
@@ -188,70 +188,128 @@ export default function CommandeDetailPage() {
           {commande.articles.length === 0 ? (
             <div className="py-10 text-center text-sm text-white/30">Aucun article</div>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5">
-                  <th className="text-left px-4 py-2.5 text-xs text-white/40">Article</th>
-                  <th className="text-left px-4 py-2.5 text-xs text-white/40">État</th>
-                  <th className="text-right px-4 py-2.5 text-xs text-white/40">Achat</th>
-                  <th className="text-right px-4 py-2.5 text-xs text-white/40">Marge</th>
-                  <th className="text-left px-4 py-2.5 text-xs text-white/40">Statut</th>
-                  <th className="text-right px-4 py-2.5 text-xs text-white/40">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+            <>
+              {/* Mobile: cards articles */}
+              <div className="sm:hidden divide-y divide-white/5">
                 {commande.articles.map((article) => {
                   const marge = article.prixVenteReel
                     ? article.prixVenteReel - (article.fraisVente ?? 0) - article.prixAchat
                     : null
                   return (
-                    <tr key={article.id} className="border-b border-white/5 hover:bg-white/2">
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-white">{article.marque} {article.modele}</p>
-                        {article.refFournisseur && <p className="text-xs text-white/35">{article.refFournisseur}</p>}
-                      </td>
-                      <td className="px-4 py-3 text-white/50 text-xs">{article.etat}</td>
-                      <td className="px-4 py-3 text-right font-medium text-white">{article.prixAchat.toFixed(2)} €</td>
-                      <td className="px-4 py-3 text-right text-xs font-semibold">
-                        {marge !== null ? (
-                          <span className={marge >= 0 ? 'text-green-400' : 'text-red-400'}>
-                            {marge >= 0 ? '+' : ''}{marge.toFixed(0)} €
-                          </span>
-                        ) : <span className="text-white/20">—</span>}
-                      </td>
-                      <td className="px-4 py-3"><Badge statut={article.statut} /></td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
+                    <div key={article.id} className="px-4 py-3.5">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <p className="font-medium text-white text-sm">{article.marque} {article.modele}</p>
+                          {article.refFournisseur && <p className="text-xs text-white/35">{article.refFournisseur}</p>}
+                        </div>
+                        <Badge statut={article.statut} />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-xs text-white/50">
+                          <span>{article.etat}</span>
+                          <span>·</span>
+                          <span className="text-white font-medium">{article.prixAchat.toFixed(2)} €</span>
+                          {marge !== null && (
+                            <span className={marge >= 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
+                              {marge >= 0 ? '+' : ''}{marge.toFixed(0)} €
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
                           {article.statut !== 'Vendu' && (
                             <button
                               onClick={() => commande.frais.length > 0
                                 ? setVenteArticle(article)
                                 : toast.error('Ajoutez d\'abord les frais & taxes de cette commande')}
-                              className={`p-1.5 rounded transition-colors ${commande.frais.length === 0 ? 'text-white/20 hover:text-amber-400 hover:bg-amber-500/10' : 'text-white/40 hover:text-green-400 hover:bg-green-500/10'}`}
-                              title="Vendre"
+                              className={`p-2 rounded transition-colors ${commande.frais.length === 0 ? 'text-white/20 hover:text-amber-400 hover:bg-amber-500/10' : 'text-white/40 hover:text-green-400 hover:bg-green-500/10'}`}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                             </button>
                           )}
-                          <button onClick={() => setEditArticle(article)} className="p-1.5 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors" title="Modifier">
+                          <button onClick={() => setEditArticle(article)} className="p-2 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button onClick={() => handleDeleteArticle(article.id)} className="p-1.5 rounded hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Supprimer">
+                          <button onClick={() => handleDeleteArticle(article.id)} className="p-2 rounded hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   )
                 })}
-              </tbody>
-            </table>
+              </div>
+              {/* Desktop: table */}
+              <table className="hidden sm:table w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    <th className="text-left px-4 py-2.5 text-xs text-white/40">Article</th>
+                    <th className="text-left px-4 py-2.5 text-xs text-white/40">État</th>
+                    <th className="text-right px-4 py-2.5 text-xs text-white/40">Achat</th>
+                    <th className="text-right px-4 py-2.5 text-xs text-white/40">Marge</th>
+                    <th className="text-left px-4 py-2.5 text-xs text-white/40">Statut</th>
+                    <th className="text-right px-4 py-2.5 text-xs text-white/40">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {commande.articles.map((article) => {
+                    const marge = article.prixVenteReel
+                      ? article.prixVenteReel - (article.fraisVente ?? 0) - article.prixAchat
+                      : null
+                    return (
+                      <tr key={article.id} className="border-b border-white/5 hover:bg-white/2">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-white">{article.marque} {article.modele}</p>
+                          {article.refFournisseur && <p className="text-xs text-white/35">{article.refFournisseur}</p>}
+                        </td>
+                        <td className="px-4 py-3 text-white/50 text-xs">{article.etat}</td>
+                        <td className="px-4 py-3 text-right font-medium text-white">{article.prixAchat.toFixed(2)} €</td>
+                        <td className="px-4 py-3 text-right text-xs font-semibold">
+                          {marge !== null ? (
+                            <span className={marge >= 0 ? 'text-green-400' : 'text-red-400'}>
+                              {marge >= 0 ? '+' : ''}{marge.toFixed(0)} €
+                            </span>
+                          ) : <span className="text-white/20">—</span>}
+                        </td>
+                        <td className="px-4 py-3"><Badge statut={article.statut} /></td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            {article.statut !== 'Vendu' && (
+                              <button
+                                onClick={() => commande.frais.length > 0
+                                  ? setVenteArticle(article)
+                                  : toast.error('Ajoutez d\'abord les frais & taxes de cette commande')}
+                                className={`p-1.5 rounded transition-colors ${commande.frais.length === 0 ? 'text-white/20 hover:text-amber-400 hover:bg-amber-500/10' : 'text-white/40 hover:text-green-400 hover:bg-green-500/10'}`}
+                                title="Vendre"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              </button>
+                            )}
+                            <button onClick={() => setEditArticle(article)} className="p-1.5 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors" title="Modifier">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button onClick={() => handleDeleteArticle(article.id)} className="p-1.5 rounded hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Supprimer">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </>
           )}
         </div>
 

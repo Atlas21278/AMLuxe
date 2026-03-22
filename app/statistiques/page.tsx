@@ -214,7 +214,8 @@ export default function StatistiquesPage() {
           {/* Evolution CA / Bénéfice */}
           <div className="sm:col-span-2 bg-white/3 border border-white/5 rounded-xl p-5">
             <h2 className="text-sm font-semibold text-white mb-5">Évolution mensuelle (CA & Bénéfice)</h2>
-            <ResponsiveContainer width="100%" height={220}>
+            <div className="h-40 sm:h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={parMois}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="mois" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -224,6 +225,7 @@ export default function StatistiquesPage() {
                 <Line type="monotone" dataKey="benefice" name="Bénéfice brut (€)" stroke="#10b981" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Plateformes */}
@@ -257,7 +259,8 @@ export default function StatistiquesPage() {
           {/* Bénéfice par marque — bar chart */}
           <div className="bg-white/3 border border-white/5 rounded-xl p-5">
             <h2 className="text-sm font-semibold text-white mb-5">Bénéfice brut par marque</h2>
-            <ResponsiveContainer width="100%" height={220}>
+            <div className="h-36 sm:h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={parMarque.slice(0, 8)} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                 <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v} €`} />
@@ -266,6 +269,7 @@ export default function StatistiquesPage() {
                 <Bar dataKey="benefice" name="Bénéfice brut (€)" fill="#a855f7" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Tableau par marque */}
@@ -273,7 +277,26 @@ export default function StatistiquesPage() {
             <div className="px-5 py-4 border-b border-white/5">
               <h2 className="text-sm font-semibold text-white">Détail par marque</h2>
             </div>
-            <table className="w-full text-sm">
+            {/* Mobile: cards */}
+            <div className="sm:hidden divide-y divide-white/5">
+              {parMarque.map((m) => (
+                <div key={m.marque} className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-white text-sm">{m.marque}</span>
+                    <span className="text-xs text-white/40">{m.nb} pièce{m.nb > 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="text-white/50">CA : <span className="text-white font-medium">{m.ca.toFixed(0)} €</span></span>
+                    <span className={`font-semibold ${m.benefice >= 0 ? 'text-green-400' : 'text-red-400'}`}>{m.benefice >= 0 ? '+' : ''}{m.benefice.toFixed(0)} €</span>
+                    <span className={m.ca > 0 && (m.benefice / m.ca * 100) >= 20 ? 'text-green-400' : 'text-yellow-400'}>
+                      {m.ca > 0 ? `${(m.benefice / m.ca * 100).toFixed(1)}%` : '—'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: table */}
+            <table className="hidden sm:table w-full text-sm">
               <thead>
                 <tr className="border-b border-white/5">
                   <th className="text-left px-4 py-3 text-xs text-white/40 uppercase">Marque</th>
@@ -305,7 +328,26 @@ export default function StatistiquesPage() {
               <div className="px-5 py-4 border-b border-white/5">
                 <h2 className="text-sm font-semibold text-white">Performance par fournisseur</h2>
               </div>
-              <table className="w-full text-sm">
+              {/* Mobile: cards */}
+              <div className="sm:hidden divide-y divide-white/5">
+                {parFournisseur.map((f) => (
+                  <div key={f.fournisseur} className="px-4 py-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-white text-sm truncate">{f.fournisseur}</span>
+                      <span className="text-xs text-white/40 shrink-0 ml-2">{f.nb} vendu{f.nb > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="text-white/50">CA : <span className="text-white font-medium">{f.ca.toFixed(0)} €</span></span>
+                      <span className={`font-semibold ${f.benefice >= 0 ? 'text-green-400' : 'text-red-400'}`}>{f.benefice >= 0 ? '+' : ''}{f.benefice.toFixed(0)} €</span>
+                      <span className={f.ca > 0 && (f.benefice / f.ca * 100) >= 20 ? 'text-green-400' : 'text-yellow-400'}>
+                        {f.ca > 0 ? `${(f.benefice / f.ca * 100).toFixed(1)}%` : '—'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: table */}
+              <table className="hidden sm:table w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/5">
                     <th className="text-left px-4 py-3 text-xs text-white/40 uppercase">Fournisseur</th>

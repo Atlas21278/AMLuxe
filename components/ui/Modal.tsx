@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 interface ModalProps {
@@ -14,6 +14,9 @@ interface ModalProps {
 const sizeClass = { md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
 
 export default function Modal({ title, onClose, children, footer, size = 'md' }: ModalProps) {
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [showScrollHint, setShowScrollHint] = useState(false)
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -22,19 +25,34 @@ export default function Modal({ title, onClose, children, footer, size = 'md' }:
     return () => document.removeEventListener('keydown', handleKey)
   }, [onClose])
 
+  // T-073 — détecter s'il y a du contenu à scroller
+  useEffect(() => {
+    const el = bodyRef.current
+    if (!el) return
+    const check = () => {
+      setShowScrollHint(el.scrollHeight > el.clientHeight + 20 && el.scrollTop < el.scrollHeight - el.clientHeight - 20)
+    }
+    check()
+    el.addEventListener('scroll', check)
+    const obs = new ResizeObserver(check)
+    obs.observe(el)
+    return () => { el.removeEventListener('scroll', check); obs.disconnect() }
+  }, [])
+
   const content = (
-    <div className="fixed inset-0 z-50 w-screen h-screen flex items-center justify-center p-6">
+    // T-066 — padding réduit sur mobile (p-3 au lieu de p-6)
+    <div className="fixed inset-0 z-50 w-screen h-screen flex items-end sm:items-center justify-center p-0 sm:p-6">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className={`relative z-10 w-full ${sizeClass[size]} bg-[#1a1a26] border border-white/10 rounded-2xl shadow-2xl flex flex-col max-h-[88vh]`}>
+      {/* Modal — slide up sur mobile, centré sur desktop */}
+      <div className={`relative z-10 w-full ${sizeClass[size]} bg-[#1a1a26] border border-white/10 sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[88vh]`}>
 
         {/* Header */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-white/8">
+        <div className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/8">
           <h2 className="text-base font-semibold text-white">{title}</h2>
           <button
             onClick={onClose}
@@ -46,14 +64,22 @@ export default function Modal({ title, onClose, children, footer, size = 'md' }:
           </button>
         </div>
 
-        {/* Body scrollable */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">
-          {children}
+        {/* Body scrollable avec indicateur */}
+        <div className="relative flex-1 min-h-0">
+          <div ref={bodyRef} className="h-full overflow-y-auto px-4 sm:px-6 py-5">
+            {children}
+          </div>
+          {/* T-073 — dégradé indicateur de scroll */}
+          {showScrollHint && (
+            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#1a1a26] to-transparent flex items-end justify-center pb-2">
+              <span className="text-white/30 text-xs">↓ défiler</span>
+            </div>
+          )}
         </div>
 
         {/* Footer optionnel */}
         {footer && (
-          <div className="shrink-0 px-6 py-4 border-t border-white/8 bg-[#1a1a26] rounded-b-2xl">
+          <div className="shrink-0 px-4 sm:px-6 py-4 border-t border-white/8 bg-[#1a1a26] rounded-b-2xl">
             {footer}
           </div>
         )}
@@ -61,7 +87,6 @@ export default function Modal({ title, onClose, children, footer, size = 'md' }:
     </div>
   )
 
-  // Portal vers document.body pour que fixed soit relatif au vrai viewport
   if (typeof document === 'undefined') return null
   return createPortal(content, document.body)
 }

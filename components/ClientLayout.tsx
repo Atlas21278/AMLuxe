@@ -11,6 +11,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [sidebarOpen, setSidebarOpen] = useState(false) // mobile
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false) // desktop
 
+  // T-078 — fermer la sidebar mobile automatiquement lors d'un changement de route
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
+
   // Persister l'état collapsed en localStorage
   useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed')

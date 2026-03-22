@@ -423,8 +423,10 @@ body {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.page-enter {
-  animation: fadeInPage 0.3s ease forwards;
+@media (prefers-reduced-motion: no-preference) {
+  .page-enter {
+    animation: fadeInPage 0.3s ease forwards;
+  }
 }
 
 /* ── Skeleton shimmer ─────────────────────────────────── */
@@ -440,6 +442,24 @@ body {
     rgba(255,255,255,0.04) 75%
   );
   background-size: 800px 100%;
-  animation: skeletonShimmer 1.4s ease-in-out infinite;
   border-radius: 6px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton {
+    animation: skeletonShimmer 1.4s ease-in-out infinite;
+  }
+}
+
+/* ── iOS zoom fix — force 16px min sur mobile pour éviter le zoom auto ── */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="date"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
