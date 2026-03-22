@@ -18,13 +18,13 @@ export default function StatistiquesPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/articles').then((r) => r.json()),
-      fetch('/api/config').then((r) => r.json()),
+      fetch('/api/articles').then((r) => r.ok ? r.json() : []),
+      fetch('/api/config').then((r) => r.ok ? r.json() : {}),
     ]).then(([arts, config]) => {
-      setArticles(arts)
+      setArticles(Array.isArray(arts) ? arts : [])
       setAbonnementMensuel(Number(config.abonnementMensuel ?? 0))
       setLoading(false)
-    })
+    }).catch(() => setLoading(false))
   }, [])
 
   const vendus = articles.filter((a) => a.statut === 'Vendu' && a.prixVenteReel)
