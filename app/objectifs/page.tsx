@@ -252,41 +252,39 @@ function ProgressBar({ progressPct, palierActuel, palierPrecedent, getStatut }: 
             </motion.div>
           </div>
 
-          {/* Marqueurs */}
+          {/* Marqueurs — ticks verticaux, sans cercles */}
           <div className="absolute inset-0 pointer-events-none">
             {PALIERS.map((p, i) => {
               const position = (p.montant / PALIERS[PALIERS.length - 1].montant) * 100
               const est = getStatut(p)
+              const isCurrent = est === 'current'
               return (
                 <div key={p.montant}
-                  className="absolute top-0 bottom-0 flex items-center"
-                  style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
+                  className="absolute inset-0 flex items-stretch"
+                  style={{ left: `${position}%`, transform: 'translateX(-50%)', width: '2px' }}
                 >
-                  {/* Ligne verticale */}
-                  <div className="absolute inset-y-2 w-px"
-                    style={{ background: est !== 'locked' ? `${p.color}60` : 'rgba(255,255,255,0.08)' }} />
-                  {/* Dot */}
+                  {/* Tick vertical pleine hauteur */}
                   <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.8 + i * 0.1, type: 'spring', stiffness: 400 }}
-                    className="w-5 h-5 rounded-full border-2 z-10 flex items-center justify-center"
+                    initial={{ scaleY: 0 }}
+                    animate={{ scaleY: 1 }}
+                    transition={{ delay: 0.6 + i * 0.08, duration: 0.4 }}
+                    className="w-full"
                     style={{
-                      backgroundColor: est !== 'locked' ? p.color : '#0f0f18',
-                      borderColor: est !== 'locked' ? p.color : 'rgba(255,255,255,0.15)',
-                      boxShadow: est !== 'locked' ? `0 0 16px ${p.glow}` : 'none',
-                      animation: est === 'current' ? 'ping-slow 1.5s ease-in-out infinite' : 'none',
+                      background: est === 'unlocked'
+                        ? p.color
+                        : isCurrent
+                          ? `linear-gradient(180deg, ${p.color}, ${p.color}40)`
+                          : 'rgba(255,255,255,0.12)',
+                      boxShadow: est !== 'locked' ? `0 0 8px ${p.glow}` : 'none',
+                      animation: isCurrent ? 'ping-slow 2s ease-in-out infinite' : 'none',
                     }}
-                  >
-                    {est === 'unlocked' && (
-                      <svg className="w-3 h-3" fill="white" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                    {est === 'current' && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    )}
-                  </motion.div>
+                  />
+                  {/* Losange indicateur au-dessus pour le palier actuel */}
+                  {isCurrent && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45"
+                      style={{ background: p.color, boxShadow: `0 0 8px ${p.glow}`, animation: 'ping-slow 1.5s ease-in-out infinite' }}
+                    />
+                  )}
                 </div>
               )
             })}
@@ -383,19 +381,15 @@ function CarCard({ palier, statut, montantActuel, index }: {
         <img
           src={palier.image}
           alt={palier.nom}
-          className={`w-full h-full object-contain object-right-bottom transition-all ${imgOk ? (statut === 'locked' ? 'opacity-15 grayscale' : 'opacity-80 drop-shadow-lg') : 'opacity-0'}`}
+          className={`w-full h-full object-contain object-right-bottom transition-all ${imgOk ? (statut === 'locked' ? 'opacity-30 grayscale' : 'opacity-80 drop-shadow-lg') : 'opacity-0'}`}
           onLoad={() => setImgOk(true)}
           onError={() => setImgOk(false)}
         />
       </div>
 
-      {/* Overlay locked */}
+      {/* Overlay sombre pour cartes bloquées — sans icône */}
       {statut === 'locked' && (
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center z-10">
-          <svg className="w-8 h-8 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
-        </div>
+        <div className="absolute inset-0 bg-black/50 z-10" />
       )}
 
       {/* Contenu */}
@@ -480,7 +474,17 @@ export default function ObjectifsPage() {
       const achats = vendus.reduce((s: number, a: { prixAchat: number }) => s + a.prixAchat, 0)
       const fraisVente = vendus.reduce((s: number, a: { fraisVente?: number }) => s + (a.fraisVente ?? 0), 0)
       const abonnementsTotal = abonnements.reduce((s: number, a: { montant: number }) => s + a.montant, 0)
-      const benefice = Math.max(0, ca - achats - fraisVente - abonnementsTotal)
+      // Frais commande (douane/livraison) — même logique que la page statistiques
+      const commandesAvecVente = new Set(vendus.map((a: { commandeId: number }) => a.commandeId))
+      const seen = new Set<number>()
+      const fraisCommandeTotal = articles
+        .filter((a: { commandeId: number }) => commandesAvecVente.has(a.commandeId))
+        .reduce((acc: number, a: { commandeId: number; commande?: { frais: { montant: number }[] } }) => {
+          if (seen.has(a.commandeId)) return acc
+          seen.add(a.commandeId)
+          return acc + (a.commande?.frais ?? []).reduce((s: number, f: { montant: number }) => s + f.montant, 0)
+        }, 0)
+      const benefice = Math.max(0, ca - achats - fraisVente - fraisCommandeTotal - abonnementsTotal)
       setMontantActuel(benefice)
       setLoading(false)
     }).catch(() => setLoading(false))
