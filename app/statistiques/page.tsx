@@ -52,23 +52,32 @@ export default function StatistiquesPage() {
   )
 
   // Evolution mensuelle
-  const parMois = Object.values(
-    vendus.reduce<Record<string, { mois: string; ca: number; benefice: number }>>((acc, a) => {
-      if (!a.dateVente) return acc
-      const d = new Date(a.dateVente)
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      const label = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
-      if (!acc[key]) acc[key] = { mois: label, ca: 0, benefice: 0 }
-      acc[key].ca += a.prixVenteReel ?? 0
-      acc[key].benefice += (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat
-      return acc
-    }, {})
-  ).sort((a, b) => a.mois.localeCompare(b.mois))
+  const parMoisMap = vendus.reduce<Record<string, { mois: string; ca: number; benefice: number }>>((acc, a) => {
+    if (!a.dateVente) return acc
+    const d = new Date(a.dateVente)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const label = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+    if (!acc[key]) acc[key] = { mois: label, ca: 0, benefice: 0 }
+    acc[key].ca += a.prixVenteReel ?? 0
+    acc[key].benefice += (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat
+    return acc
+  }, {})
+  const parMois = Object.entries(parMoisMap)
+    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+    .map(([, val]) => val)
 
-  if (loading) return <div className="p-8 text-white/40 text-sm">Chargement...</div>
+  if (loading) return (
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-8"><div className="skeleton h-7 w-40 mb-2" /><div className="skeleton h-4 w-56" /></div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
+        {Array.from({ length: 4 }).map((_, i) => <div key={i} className="bg-white/3 border border-white/5 rounded-xl p-4"><div className="skeleton h-3 w-20 mb-3" /><div className="skeleton h-7 w-28" /></div>)}
+      </div>
+      <div className="skeleton h-64 w-full rounded-xl" />
+    </div>
+  )
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="page-enter p-4 sm:p-6 lg:p-8">
       <div className="mb-6 sm:mb-8">
         <h1 className="text-xl sm:text-2xl font-bold text-white">Statistiques</h1>
         <p className="text-sm text-white/40 mt-1">Vue d&apos;ensemble de la performance</p>

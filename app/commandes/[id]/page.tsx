@@ -58,7 +58,7 @@ export default function CommandeDetailPage() {
   const benefice = totalVentes - totalAchat - totalFrais
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="page-enter p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6 sm:mb-8">
         <Link href="/commandes" className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors">

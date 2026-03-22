@@ -113,7 +113,7 @@ export default function CommandesPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="page-enter p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
         <div>
@@ -162,7 +162,16 @@ export default function CommandesPage() {
       {/* Table */}
       <div className="bg-white/3 border border-white/5 rounded-xl overflow-hidden">
         {loading ? (
-          <div className="text-center py-16 text-white/30 text-sm">Chargement...</div>
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 py-2">
+                <div className="skeleton h-4 w-32" />
+                <div className="skeleton h-4 w-24 ml-4" />
+                <div className="skeleton h-5 w-20 rounded-full ml-4" />
+                <div className="skeleton h-4 w-16 ml-auto" />
+              </div>
+            ))}
+          </div>
         ) : (
           <ListeCommandes commandes={commandes} onRefresh={fetchCommandes} />
         )}
