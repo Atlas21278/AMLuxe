@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import { useState, useEffect } from 'react'
 
 interface SidebarProps {
   onClose?: () => void
@@ -61,6 +62,8 @@ const settingsItems = [
 
 export default function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   const handleNav = () => {
     if (onClose) onClose()
@@ -97,7 +100,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <p className="px-3 mb-2 text-xs font-semibold text-white/30 uppercase tracking-wider">Menu</p>
           <ul className="space-y-1">
             {navItems.map((item) => {
-              const isActive = pathname.startsWith(item.href)
+              const isActive = mounted && !!pathname && pathname.startsWith(item.href)
               return (
                 <li key={item.href}>
                   <Link
@@ -127,7 +130,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <p className="px-3 mb-2 text-xs font-semibold text-white/30 uppercase tracking-wider">Paramètres</p>
           <ul className="space-y-1">
             {settingsItems.map((item) => {
-              const isActive = pathname.startsWith(item.href)
+              const isActive = mounted && !!pathname && pathname.startsWith(item.href)
               return (
                 <li key={item.href}>
                   <Link
