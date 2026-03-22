@@ -68,14 +68,14 @@ export default function StatistiquesPage() {
   if (loading) return <div className="p-8 text-white/40 text-sm">Chargement...</div>
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Statistiques</h1>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-white">Statistiques</h1>
         <p className="text-sm text-white/40 mt-1">Vue d&apos;ensemble de la performance</p>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {[
           { label: "Chiffre d'affaires", value: `${caTotal.toFixed(2)} €`, sub: `${vendus.length} ventes`, color: 'text-white' },
           { label: 'Bénéfice net', value: `${beneficeTotal.toFixed(2)} €`, sub: `après tous frais`, color: beneficeTotal >= 0 ? 'text-green-400' : 'text-red-400' },
@@ -95,9 +95,9 @@ export default function StatistiquesPage() {
           <p className="text-sm">Aucune vente enregistrée pour le moment</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           {/* Evolution CA / Bénéfice */}
-          <div className="col-span-2 bg-white/3 border border-white/5 rounded-xl p-5">
+          <div className="sm:col-span-2 bg-white/3 border border-white/5 rounded-xl p-5">
             <h2 className="text-sm font-semibold text-white mb-5">Évolution mensuelle (CA & Bénéfice)</h2>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={parMois}>
@@ -142,7 +142,7 @@ export default function StatistiquesPage() {
           </div>
 
           {/* Tableau par marque */}
-          <div className="col-span-2 bg-white/3 border border-white/5 rounded-xl overflow-hidden">
+          <div className="sm:col-span-2 bg-white/3 border border-white/5 rounded-xl overflow-hidden overflow-x-auto">
             <div className="px-5 py-4 border-b border-white/5">
               <h2 className="text-sm font-semibold text-white">Détail par marque</h2>
             </div>

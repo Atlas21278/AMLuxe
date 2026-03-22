@@ -54,16 +54,14 @@ export default function ArticlesPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Articles</h1>
-          <p className="text-sm text-white/40 mt-1">{stats.total} article{stats.total > 1 ? 's' : ''} au total</p>
-        </div>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-white">Articles</h1>
+        <p className="text-sm text-white/40 mt-1">{stats.total} article{stats.total > 1 ? 's' : ''} au total</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {[
           { label: 'Total', value: stats.total, color: 'border-white/10' },
           { label: 'En stock', value: stats.enStock, color: 'border-slate-500/30' },
@@ -78,8 +76,8 @@ export default function ArticlesPage() {
       </div>
 
       {/* Filtres */}
-      <div className="flex gap-3 mb-6">
-        <div className="relative flex-1 max-w-xs">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1 sm:max-w-xs">
           <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -105,7 +103,52 @@ export default function ArticlesPage() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-white/30 text-sm">Aucun article trouvé</div>
         ) : (
-          <table className="w-full text-sm">
+          <>
+          {/* Mobile: cards */}
+          <div className="sm:hidden divide-y divide-white/5">
+            {paginated.map((article) => {
+              const marge = article.prixVenteReel
+                ? ((article.prixVenteReel - (article.fraisVente ?? 0) - article.prixAchat) / article.prixAchat * 100).toFixed(0)
+                : null
+              return (
+                <div key={article.id} className="px-4 py-3.5">
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div>
+                      <p className="font-medium text-white text-sm">{article.marque} {article.modele}</p>
+                      {article.refFournisseur && <p className="text-xs text-white/35">{article.refFournisseur}</p>}
+                    </div>
+                    <Badge statut={article.statut} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-xs text-white/40">
+                      <span>{article.etat}</span>
+                      <span>·</span>
+                      <span className="text-white/60 font-medium">{article.prixAchat.toFixed(2)} €</span>
+                      {article.prixVenteReel && (
+                        <>
+                          <span>→</span>
+                          <span className="text-white font-medium">{article.prixVenteReel.toFixed(2)} €</span>
+                          {marge && <span className={Number(marge) >= 0 ? 'text-green-400' : 'text-red-400'}>{Number(marge) >= 0 ? '+' : ''}{marge}%</span>}
+                        </>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {article.statut !== 'Vendu' && (
+                        <button onClick={() => setVenteArticle(article)} className="p-1.5 rounded hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Desktop: table */}
+          <table className="hidden sm:table w-full text-sm">
             <thead>
               <tr className="border-b border-white/5">
                 <th className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider">Article</th>
@@ -175,6 +218,7 @@ export default function ArticlesPage() {
               })}
             </tbody>
           </table>
+          </>
         )}
       </div>
 

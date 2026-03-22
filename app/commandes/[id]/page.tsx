@@ -54,9 +54,9 @@ export default function CommandeDetailPage() {
   const benefice = totalVentes - totalAchat - totalFrais
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-4 mb-6 sm:mb-8">
         <Link href="/commandes" className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -75,7 +75,7 @@ export default function CommandeDetailPage() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {[
           { label: 'Total achat', value: `${totalAchat.toFixed(2)} €`, sub: `${commande.articles.length} articles` },
           { label: 'Frais', value: `${totalFrais.toFixed(2)} €`, sub: `${commande.frais.length} ligne(s)` },
@@ -90,9 +90,9 @@ export default function CommandeDetailPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Articles */}
-        <div className="col-span-2 bg-white/3 border border-white/5 rounded-xl overflow-hidden">
+        <div className="lg:col-span-2 bg-white/3 border border-white/5 rounded-xl overflow-hidden overflow-x-auto">
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
             <h2 className="text-sm font-semibold text-white">Articles</h2>
             <button

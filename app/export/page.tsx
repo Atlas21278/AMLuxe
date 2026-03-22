@@ -209,13 +209,13 @@ export default function ExportPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Export / Import</h1>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-white">Export / Import</h1>
         <p className="text-sm text-white/40 mt-1">Gérez vos données au format Excel</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-6 max-w-4xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-4xl">
 
         {/* ── EXPORT ── */}
         <div className="bg-white/3 border border-white/5 rounded-xl p-6">

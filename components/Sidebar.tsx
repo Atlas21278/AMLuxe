@@ -4,6 +4,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 
+interface SidebarProps {
+  onClose?: () => void
+}
+
 const navItems = [
   {
     href: '/commandes',
@@ -55,13 +59,17 @@ const settingsItems = [
   },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname()
 
+  const handleNav = () => {
+    if (onClose) onClose()
+  }
+
   return (
-    <aside className="w-64 min-h-screen flex flex-col bg-[#13131c] border-r border-white/5">
+    <aside className="w-64 h-full min-h-screen flex flex-col bg-[#13131c] border-r border-white/5">
       {/* Logo */}
-      <div className="px-6 py-6 border-b border-white/5">
+      <div className="px-6 py-6 border-b border-white/5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center text-white font-bold text-sm">
             AM
@@ -71,10 +79,22 @@ export default function Sidebar() {
             <p className="text-xs text-white/40">Gestion achat/revente</p>
           </div>
         </div>
+        {/* Bouton fermer sur mobile */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors"
+            aria-label="Fermer le menu"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Navigation principale */}
-      <nav className="flex-1 px-3 py-4 space-y-6">
+      <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
         <div>
           <p className="px-3 mb-2 text-xs font-semibold text-white/30 uppercase tracking-wider">Menu</p>
           <ul className="space-y-1">
@@ -84,6 +104,7 @@ export default function Sidebar() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    onClick={handleNav}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       isActive
                         ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
@@ -113,6 +134,7 @@ export default function Sidebar() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    onClick={handleNav}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       isActive
                         ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'

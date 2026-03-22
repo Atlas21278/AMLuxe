@@ -124,8 +124,8 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
   return (
     <div>
       {/* Filtres */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="relative flex-1 max-w-xs">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
+        <div className="relative flex-1 sm:max-w-xs">
           <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -183,7 +183,35 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto">
+          {/* Mobile: cards */}
+          <div className="sm:hidden divide-y divide-white/5">
+            {paginated.map((commande) => {
+              const totalAchat = commande.articles.reduce((s, a) => s + a.prixAchat, 0)
+              const totalFrais = commande.frais.reduce((s, f) => s + f.montant, 0)
+              return (
+                <div
+                  key={commande.id}
+                  onClick={() => router.push(`/commandes/${commande.id}`)}
+                  className="px-4 py-3.5 active:bg-white/5 cursor-pointer"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="font-medium text-white text-sm">{commande.fournisseur}</p>
+                    <Badge statut={commande.statut} />
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-white/40 flex-wrap">
+                    <span>{new Date(commande.date).toLocaleDateString('fr-FR')}</span>
+                    <span>·</span>
+                    <span>{commande.articles.length} article{commande.articles.length > 1 ? 's' : ''}</span>
+                    {totalAchat > 0 && <><span>·</span><span className="text-white/60 font-medium">{totalAchat.toFixed(2)} €</span></>}
+                    {totalFrais > 0 && <><span>·</span><span className="text-white/40">{totalFrais.toFixed(2)} € frais</span></>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/5">
@@ -260,6 +288,7 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
                 })}
               </tbody>
             </table>
+          </div>
           </div>
 
           {/* Pagination */}
