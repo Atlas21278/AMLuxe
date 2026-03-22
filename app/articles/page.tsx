@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
-import FormulaireVente from '@/components/articles/FormulaireVente'
-import FormulaireArticle from '@/components/articles/FormulaireArticle'
 import { toast } from 'sonner'
 import type { Article } from '@prisma/client'
+
+const FormulaireVente = dynamic(() => import('@/components/articles/FormulaireVente'), { ssr: false })
+const FormulaireArticle = dynamic(() => import('@/components/articles/FormulaireArticle'), { ssr: false })
 
 type ArticleAvecCommande = Article & { commande: { fournisseur: string; id: number; frais: { id: number }[] } }
 
