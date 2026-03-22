@@ -166,8 +166,9 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
         />
       </div>
 
-      {/* Section articles — uniquement à la création */}
+      {/* Section articles + frais — uniquement à la création */}
       {!isEdit && (
+        <>
         <div className="pt-2">
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -317,6 +318,7 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
             </div>
           )}
         </div>
+        </>
       )}
 
       <div className="flex gap-3 pt-2">
