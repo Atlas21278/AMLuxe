@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
 
   const articles = await prisma.article.findMany({
     where: commandeId ? { commandeId: Number(commandeId) } : undefined,
-    include: { commande: { select: { fournisseur: true, id: true, _count: { select: { frais: true } } } } },
+    include: { commande: { include: { frais: true } } },
     orderBy: { createdAt: 'desc' },
   })
   return NextResponse.json(articles)

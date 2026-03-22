@@ -50,6 +50,13 @@ model Frais {
   commande    Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
 }
 
+model Config {
+  id        Int      @id @default(autoincrement())
+  cle       String   @unique
+  valeur    String
+  updatedAt DateTime @updatedAt
+}
+
 model User {
   id         Int      @id @default(autoincrement())
   email      String   @unique
