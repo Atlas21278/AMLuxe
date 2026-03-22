@@ -50,6 +50,14 @@ model Frais {
   commande    Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
 }
 
+model AbonnementMensuel {
+  id        Int      @id @default(autoincrement())
+  mois      String   @unique // format "YYYY-MM"
+  montant   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Config {
   id        Int      @id @default(autoincrement())
   cle       String   @unique

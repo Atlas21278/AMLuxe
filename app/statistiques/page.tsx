@@ -14,15 +14,15 @@ const COLORS = ['#a855f7', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'
 export default function StatistiquesPage() {
   const [articles, setArticles] = useState<ArticleAvecCommande[]>([])
   const [loading, setLoading] = useState(true)
-  const [abonnementMensuel, setAbonnementMensuel] = useState(0)
+  const [coutAbonnementTotal, setCoutAbonnementTotal] = useState(0)
 
   useEffect(() => {
     Promise.all([
       fetch('/api/articles').then((r) => r.ok ? r.json() : []),
-      fetch('/api/config').then((r) => r.ok ? r.json() : {}),
-    ]).then(([arts, config]) => {
+      fetch('/api/abonnements').then((r) => r.ok ? r.json() : []),
+    ]).then(([arts, abonnements]: [ArticleAvecCommande[], { montant: number }[]]) => {
       setArticles(Array.isArray(arts) ? arts : [])
-      setAbonnementMensuel(Number(config.abonnementMensuel ?? 0))
+      setCoutAbonnementTotal(abonnements.reduce((sum, a) => sum + a.montant, 0))
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -45,15 +45,6 @@ export default function StatistiquesPage() {
       if (dejaPris) return acc
       return acc + a.commande.frais.reduce((s, f) => s + f.montant, 0)
     }, 0)
-
-  // Abonnement : nb de mois depuis le premier achat jusqu'à maintenant
-  const toutesLesDates = articles.map((a) => new Date(a.createdAt).getTime()).filter(Boolean)
-  const nbMoisAbonnement = toutesLesDates.length > 0
-    ? Math.max(1, Math.ceil(
-        (Date.now() - Math.min(...toutesLesDates)) / (1000 * 60 * 60 * 24 * 30)
-      ))
-    : 0
-  const coutAbonnementTotal = abonnementMensuel * nbMoisAbonnement
 
   const beneficeTotal = caTotal - fraisVenteTotal - coutAchatTotal - fraisCommandeTotal - coutAbonnementTotal
   const margeGlobale = caTotal > 0 ? ((beneficeTotal / caTotal) * 100).toFixed(1) : '0'
@@ -144,11 +135,11 @@ export default function StatistiquesPage() {
           <span className="text-white/60">Frais vente : <span className="text-white font-medium">{fraisVenteTotal.toFixed(2)} €</span></span>
           <span className="text-white/40">−</span>
           <span className="text-white/60">Douane/livr. : <span className="text-white font-medium">{fraisCommandeTotal.toFixed(2)} €</span></span>
-          {abonnementMensuel > 0 && (
+          {coutAbonnementTotal > 0 && (
             <>
               <span className="text-white/40">−</span>
               <span className="text-white/60">
-                Abonnement ({nbMoisAbonnement} mois × {abonnementMensuel} €) :{' '}
+                Abonnements fournisseur :{' '}
                 <span className="text-white font-medium">{coutAbonnementTotal.toFixed(2)} €</span>
               </span>
             </>
