@@ -29,6 +29,18 @@ const statutConfig: Record<string, { label: string; className: string }> = {
     label: 'Vendu',
     className: 'bg-green-500/15 text-green-400 border border-green-500/30',
   },
+  'En retour': {
+    label: 'En retour',
+    className: 'bg-orange-500/15 text-orange-400 border border-orange-500/30',
+  },
+  'Endommagé': {
+    label: 'Endommagé',
+    className: 'bg-red-500/15 text-red-400 border border-red-500/30',
+  },
+  'Litige': {
+    label: 'Litige',
+    className: 'bg-rose-500/15 text-rose-400 border border-rose-500/30',
+  },
 }
 
 export default function Badge({ statut }: BadgeProps) {

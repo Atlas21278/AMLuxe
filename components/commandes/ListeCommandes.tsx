@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import FormulaireCommande from '@/components/commandes/FormulaireCommande'
@@ -19,12 +20,7 @@ type SortDir = 'asc' | 'desc'
 
 const PAGE_SIZE = 10
 
-const STATUTS_OPTIONS = [
-  { value: 'tous', label: 'Tous les statuts' },
-  { value: 'En préparation', label: 'En préparation' },
-  { value: 'En livraison', label: 'En livraison' },
-  { value: 'Reçue', label: 'Reçue' },
-]
+const FILTRES_STATUT = ['tous', 'En préparation', 'En livraison', 'Reçue']
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   return (
@@ -43,10 +39,24 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState('')
   const [filtreStatut, setFiltreStatut] = useState('tous')
+  const [dateDebut, setDateDebut] = useState('')
+  const [dateFin, setDateFin] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selection, setSelection] = useState<Set<number>>(new Set())
   const [page, setPage] = useState(1)
+
+  // T-075 — restaurer la position de scroll après navigation arrière
+  useEffect(() => {
+    const saved = sessionStorage.getItem('scroll-commandes')
+    if (saved) {
+      requestAnimationFrame(() => window.scrollTo(0, parseInt(saved)))
+      sessionStorage.removeItem('scroll-commandes')
+    }
+    return () => {
+      sessionStorage.setItem('scroll-commandes', String(window.scrollY))
+    }
+  }, [])
 
   const handleSort = (key: SortKey) => {
     setSortKey(key)
@@ -58,7 +68,10 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
     .filter((c) => {
       const matchSearch = c.fournisseur.toLowerCase().includes(search.toLowerCase())
       const matchStatut = filtreStatut === 'tous' || c.statut === filtreStatut
-      return matchSearch && matchStatut
+      const d = new Date(c.date)
+      const matchDebut = !dateDebut || d >= new Date(dateDebut)
+      const matchFin = !dateFin || d <= new Date(dateFin + 'T23:59:59')
+      return matchSearch && matchStatut && matchDebut && matchFin
     })
     .sort((a, b) => {
       let valA: string | number
@@ -91,22 +104,54 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
     })
   }
 
-  const handleDelete = () => {
-    if (deleteId === null) return
-    startTransition(async () => {
-      await fetch(`/api/commandes/${deleteId}`, { method: 'DELETE' })
-      setDeleteId(null)
-      onRefresh()
+  const handleDelete = (idOverride?: number) => {
+    const idToDelete = idOverride ?? deleteId
+    if (idToDelete === null) return
+    setDeleteId(null)
+
+    let cancelled = false
+    const toastId = toast('Commande supprimée', {
+      duration: 5000,
+      action: {
+        label: 'Annuler',
+        onClick: () => { cancelled = true },
+      },
     })
+
+    setTimeout(() => {
+      if (cancelled) { toast.dismiss(toastId); return }
+      startTransition(async () => {
+        await fetch(`/api/commandes/${idToDelete}`, { method: 'DELETE' })
+        onRefresh()
+      })
+    }, 5000)
   }
 
   const handleDeleteSelection = () => {
-    startTransition(async () => {
-      await Promise.all([...selection].map((id) => fetch(`/api/commandes/${id}`, { method: 'DELETE' })))
-      setSelection(new Set())
-      setDeleteSelection(false)
-      onRefresh()
+    const idsToDelete = [...selection]
+    setSelection(new Set())
+    setDeleteSelection(false)
+
+    let cancelled = false
+    const toastId = toast(`${idsToDelete.length} commande${idsToDelete.length > 1 ? 's' : ''} supprimée${idsToDelete.length > 1 ? 's' : ''}`, {
+      duration: 5000,
+      action: {
+        label: 'Annuler',
+        onClick: () => { cancelled = true },
+      },
     })
+
+    setTimeout(() => {
+      if (cancelled) { toast.dismiss(toastId); return }
+      startTransition(async () => {
+        await fetch('/api/commandes/bulk', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: idsToDelete }),
+        })
+        onRefresh()
+      })
+    }, 5000)
   }
 
   const th = "px-4 py-3 text-xs font-semibold text-white/40 uppercase tracking-wider select-none"
@@ -124,35 +169,58 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
   return (
     <div>
       {/* Filtres */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
-        <div className="relative flex-1 sm:max-w-xs">
-          <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Rechercher un fournisseur..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/30"
-          />
+      <div className="flex flex-col gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1 sm:max-w-xs">
+            <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Rechercher un fournisseur..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/30"
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={dateDebut}
+                onChange={(e) => { setDateDebut(e.target.value); setPage(1) }}
+                style={{ backgroundColor: '#1a1a26', colorScheme: 'dark' }}
+                className="flex-1 sm:flex-none px-3 py-2.5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60 min-w-0"
+                title="Date de début"
+              />
+              <span className="text-white/30 text-xs shrink-0">→</span>
+              <input
+                type="date"
+                value={dateFin}
+                onChange={(e) => { setDateFin(e.target.value); setPage(1) }}
+                style={{ backgroundColor: '#1a1a26', colorScheme: 'dark' }}
+                className="flex-1 sm:flex-none px-3 py-2.5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60 min-w-0"
+                title="Date de fin"
+              />
+            </div>
+            {(dateDebut || dateFin) && (
+              <button onClick={() => { setDateDebut(''); setDateFin(''); setPage(1) }} className="text-xs text-white/40 hover:text-white transition-colors px-2 py-1 self-center">✕ Effacer dates</button>
+            )}
+          </div>
         </div>
 
-        <div className="relative">
-          <select
-            value={filtreStatut}
-            onChange={(e) => { setFiltreStatut(e.target.value); setPage(1) }}
-            style={{ backgroundColor: '#1a1a26', colorScheme: 'dark' }}
-            className="appearance-none pl-3 pr-8 py-2 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/60 cursor-pointer"
-          >
-            {STATUTS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value} style={{ backgroundColor: '#1a1a26' }}>{o.label}</option>
+        <div className="flex items-center justify-between">
+          <div className="flex flex-wrap gap-1 bg-white/5 border border-white/10 rounded-lg p-1 max-w-full overflow-hidden">
+            {FILTRES_STATUT.map((f) => (
+              <button
+                key={f}
+                onClick={() => { setFiltreStatut(f); setPage(1) }}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${filtreStatut === f ? 'bg-purple-600 text-white' : 'text-white/50 hover:text-white'}`}
+              >
+                {f === 'tous' ? 'Tous' : f}
+              </button>
             ))}
-          </select>
-          <svg xmlns="http://www.w3.org/2000/svg" className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
+          </div>
 
         {selection.size > 0 && (
           <div className="ml-auto flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-2">
@@ -171,6 +239,7 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
             </button>
           </div>
         )}
+        </div>
       </div>
 
       {/* Table */}
@@ -192,7 +261,7 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
                 <div
                   key={commande.id}
                   onClick={() => router.push(`/commandes/${commande.id}`)}
-                  className="px-4 py-3.5 active:bg-white/5 cursor-pointer"
+                  className="px-4 py-3.5 active:bg-white/5 active:scale-[0.99] transition-transform cursor-pointer"
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <p className="font-medium text-white text-sm">{commande.fournisseur}</p>
@@ -276,7 +345,7 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button onClick={() => setDeleteId(commande.id)} className="p-1.5 rounded-md hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Supprimer">
+                          <button onClick={(e) => { e.stopPropagation(); handleDelete(commande.id) }} className="p-1.5 rounded-md hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Supprimer">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
@@ -337,26 +406,12 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
         </Modal>
       )}
 
-      {/* Modal suppression simple */}
-      {deleteId !== null && (
-        <Modal title="Confirmer la suppression" onClose={() => setDeleteId(null)}>
-          <p className="text-sm text-white/70 mb-6">Cette action supprimera définitivement la commande et tous ses articles et frais associés.</p>
-          <div className="flex gap-3">
-            <button onClick={() => setDeleteId(null)} className="flex-1 px-4 py-2 rounded-lg border border-white/10 text-sm text-white/60 hover:bg-white/5 transition-colors">Annuler</button>
-            <button onClick={handleDelete} disabled={isPending} className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-sm font-medium text-white transition-colors">
-              {isPending ? 'Suppression...' : 'Supprimer'}
-            </button>
-          </div>
-        </Modal>
-      )}
-
       {/* Modal suppression en masse */}
       {deleteSelection && (
         <Modal title="Supprimer la sélection" onClose={() => setDeleteSelection(false)}>
           <p className="text-sm text-white/70 mb-2">
-            Tu vas supprimer <strong className="text-white">{selection.size} commande{selection.size > 1 ? 's' : ''}</strong> et tous leurs articles et frais associés.
+            Tu vas supprimer <strong className="text-white">{selection.size} commande{selection.size > 1 ? 's' : ''}</strong> et tous leurs articles et frais. Tu auras 5 secondes pour annuler.
           </p>
-          <p className="text-xs text-red-400/70 mb-6">Cette action est irréversible.</p>
           <div className="flex gap-3">
             <button onClick={() => setDeleteSelection(false)} className="flex-1 px-4 py-2 rounded-lg border border-white/10 text-sm text-white/60 hover:bg-white/5 transition-colors">Annuler</button>
             <button onClick={handleDeleteSelection} disabled={isPending} className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-sm font-medium text-white transition-colors">

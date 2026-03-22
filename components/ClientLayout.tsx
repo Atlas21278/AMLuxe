@@ -1,13 +1,33 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import { Toaster } from 'sonner'
 import Sidebar from './Sidebar'
 import NavigationProgress from './ui/NavigationProgress'
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false) // mobile
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false) // desktop
+
+  // T-078 — fermer la sidebar mobile automatiquement lors d'un changement de route
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
+
+  // Persister l'état collapsed en localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebar-collapsed')
+    if (saved === 'true') setSidebarCollapsed(true)
+  }, [])
+
+  const toggleCollapsed = () => {
+    setSidebarCollapsed((prev) => {
+      localStorage.setItem('sidebar-collapsed', String(!prev))
+      return !prev
+    })
+  }
 
   if (pathname === '/login') {
     return <>{children}</>
@@ -15,16 +35,29 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="flex min-h-screen">
+      <Toaster
+        position="bottom-right"
+        theme="dark"
+        toastOptions={{
+          style: { background: '#1a1a26', border: '1px solid rgba(255,255,255,0.08)', color: '#fff' },
+        }}
+      />
       <NavigationProgress />
+
       {/* Overlay mobile */}
       <div
         className={`fixed inset-0 bg-black/60 z-30 lg:hidden transition-opacity duration-300 ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setSidebarOpen(false)}
       />
 
-      {/* Sidebar */}
-      <div className={`fixed lg:static inset-y-0 left-0 z-40 transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <Sidebar onClose={() => setSidebarOpen(false)} />
+      {/* Sidebar mobile (fixed) */}
+      <div className={`fixed inset-y-0 left-0 z-40 lg:hidden transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <Sidebar onClose={() => setSidebarOpen(false)} collapsed={false} onToggleCollapse={() => {}} />
+      </div>
+
+      {/* Sidebar desktop (sticky) */}
+      <div className={`hidden lg:flex sticky top-0 h-screen flex-shrink-0 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+        <Sidebar collapsed={sidebarCollapsed} onToggleCollapse={toggleCollapsed} />
       </div>
 
       {/* Contenu principal */}

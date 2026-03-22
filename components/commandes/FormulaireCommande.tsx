@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
 import Combobox from '@/components/ui/Combobox'
 import { MARQUES, getModeles } from '@/data/marques'
+import { STATUTS_COMMANDE, ETATS, TYPES_FRAIS } from '@/constants/statuts'
 
 interface ArticleRow {
   marque: string
@@ -27,12 +29,10 @@ interface Props {
     tracking: string | null
     notes: string | null
   }
+  fournisseurs?: string[]
   onClose: () => void
 }
 
-const STATUTS = ['En préparation', 'En livraison', 'Reçue']
-const ETATS = ['Neuf', 'Très bon état', 'Bon état', 'Satisfaisant']
-const TYPES_FRAIS = ['Douane', 'Livraison', 'Autre']
 
 const articleVide = (): ArticleRow => ({
   marque: '',
@@ -44,7 +44,7 @@ const articleVide = (): ArticleRow => ({
 
 const fraisVide = (): FraisRow => ({ type: 'Douane', montant: '', description: '' })
 
-export default function FormulaireCommande({ commande, onClose }: Props) {
+export default function FormulaireCommande({ commande, fournisseurs = [], onClose }: Props) {
   const [isPending, startTransition] = useTransition()
   const isEdit = !!commande
 
@@ -87,20 +87,24 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
     e.preventDefault()
     startTransition(async () => {
       if (isEdit) {
-        await fetch(`/api/commandes/${commande.id}`, {
+        const res = await fetch(`/api/commandes/${commande.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
         })
+        if (!res.ok) { toast.error('Erreur lors de la modification'); return }
+        toast.success('Commande modifiée')
         onClose()
       } else {
         const articlesValides = articles.filter((a) => a.marque.trim() && a.modele.trim())
         const fraisValides = frais.filter((f) => f.montant && Number(f.montant) > 0)
-        await fetch('/api/commandes', {
+        const res = await fetch('/api/commandes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...form, articles: articlesValides, frais: fraisValides }),
         })
+        if (!res.ok) { toast.error('Erreur lors de la création'); return }
+        toast.success('Commande créée')
         onClose()
       }
     })
@@ -120,7 +124,14 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
           value={form.fournisseur}
           onChange={(e) => setForm({ ...form, fournisseur: e.target.value })}
           className={inputClass}
+          list="fournisseurs-suggestions"
+          autoComplete="off"
         />
+        {fournisseurs.length > 0 && (
+          <datalist id="fournisseurs-suggestions">
+            {fournisseurs.map((f) => <option key={f} value={f} />)}
+          </datalist>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -141,7 +152,7 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
             onChange={(e) => setForm({ ...form, statut: e.target.value })}
             className={inputClass}
           >
-            {STATUTS.map((s) => <option key={s} value={s}>{s}</option>)}
+            {STATUTS_COMMANDE.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
       </div>

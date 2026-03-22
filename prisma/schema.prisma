@@ -18,6 +18,10 @@ model Commande {
   updatedAt   DateTime  @updatedAt
   articles    Article[]
   frais       Frais[]
+
+  @@index([fournisseur])
+  @@index([statut])
+  @@index([date])
 }
 
 model Article {
@@ -38,6 +42,11 @@ model Article {
   updatedAt      DateTime  @updatedAt
   commandeId     Int
   commande       Commande  @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+
+  @@index([marque])
+  @@index([statut])
+  @@index([commandeId])
+  @@index([plateforme])
 }
 
 model Frais {

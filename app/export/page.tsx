@@ -224,21 +224,27 @@ export default function ExportPage() {
     const frais: any[] = sheetFrais ? XLSX.utils.sheet_to_json(sheetFrais) : []
 
     return commandes.map((c) => {
-      const fournisseur = c['Fournisseur'] ?? c['fournisseur'] ?? ''
+      const fournisseur = String(c['Fournisseur'] ?? c['fournisseur'] ?? '').trim()
       const articlesCommande = articles
         .filter((a) => (a['Fournisseur'] ?? a['fournisseur']) === fournisseur)
-        .map((a) => ({
-          marque: a['Marque'] ?? a['marque'] ?? '',
-          modele: a['Modèle'] ?? a['modele'] ?? '',
-          prixAchat: parseFloat(String(a['Prix achat (€)'] ?? a['prixAchat'] ?? 0).replace(',', '.')) || 0,
-          etat: a['État'] ?? a['etat'] ?? 'Très bon état',
-          refFournisseur: a['N° de série'] ?? a['Réf. fournisseur'] ?? '',
-          statut: a['Statut'] ?? 'En stock',
-          prixVente: a['Prix vente affiché (€)'] ? parseFloat(String(a['Prix vente affiché (€)']).replace(',', '.')) : undefined,
-          plateforme: a['Plateforme'] || undefined,
-          prixVenteReel: a['Prix vente réel (€)'] ? parseFloat(String(a['Prix vente réel (€)']).replace(',', '.')) : undefined,
-          fraisVente: a['Frais vente (€)'] ? parseFloat(String(a['Frais vente (€)']).replace(',', '.')) : undefined,
-        }))
+        .map((a) => {
+          const marque = String(a['Marque'] ?? a['marque'] ?? '').trim()
+          const modele = String(a['Modèle'] ?? a['modele'] ?? '').trim()
+          const prixAchat = Math.max(0, parseFloat(String(a['Prix achat (€)'] ?? a['prixAchat'] ?? 0).replace(',', '.')) || 0)
+          return {
+            marque,
+            modele,
+            prixAchat,
+            etat: String(a['État'] ?? a['etat'] ?? 'Très bon état').trim(),
+            refFournisseur: String(a['N° de série'] ?? a['Réf. fournisseur'] ?? '').trim(),
+            statut: String(a['Statut'] ?? 'En stock').trim(),
+            prixVente: a['Prix vente affiché (€)'] ? Math.max(0, parseFloat(String(a['Prix vente affiché (€)']).replace(',', '.'))) : undefined,
+            plateforme: a['Plateforme'] ? String(a['Plateforme']).trim() : undefined,
+            prixVenteReel: a['Prix vente réel (€)'] ? Math.max(0, parseFloat(String(a['Prix vente réel (€)']).replace(',', '.'))) : undefined,
+            fraisVente: a['Frais vente (€)'] ? Math.max(0, parseFloat(String(a['Frais vente (€)']).replace(',', '.'))) : undefined,
+          }
+        })
+        .filter((a) => a.marque && a.modele) // ignorer articles sans marque/modèle
 
       const fraisCommande = frais
         .filter((f) => (f['Fournisseur'] ?? f['fournisseur']) === fournisseur)
@@ -283,7 +289,11 @@ export default function ExportPage() {
         body: JSON.stringify({ commandes: preview }),
       })
       const result = await res.json()
+      if (!res.ok) throw new Error(result.error ?? 'Erreur serveur')
       setImportResult(result)
+      if (result.erreurs?.length > 0) {
+        setImportError(`Import partiel — ${result.erreurs.length} ligne(s) ignorée(s) : ${result.erreurs.slice(0, 3).join(', ')}${result.erreurs.length > 3 ? '…' : ''}`)
+      }
       setPreview(null)
       setImportFile(null)
       if (fileRef.current) fileRef.current.value = ''

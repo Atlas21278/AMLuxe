@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
 import Modal from '@/components/ui/Modal'
 import FormulaireCommande from '@/components/commandes/FormulaireCommande'
 import ListeCommandes from '@/components/commandes/ListeCommandes'
@@ -20,11 +21,16 @@ export default function CommandesPage() {
   const [exporting, setExporting] = useState(false)
 
   const fetchCommandes = useCallback(async () => {
-    const res = await fetch('/api/commandes')
-    if (!res.ok) { setLoading(false); return }
-    const data = await res.json()
-    setCommandes(data)
-    setLoading(false)
+    try {
+      const res = await fetch('/api/commandes')
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setCommandes(data)
+    } catch {
+      toast.error('Impossible de charger les commandes')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -181,7 +187,10 @@ export default function CommandesPage() {
       {/* Modal nouvelle commande */}
       {showModal && (
         <Modal title="Nouvelle commande" onClose={() => setShowModal(false)} size="lg">
-          <FormulaireCommande onClose={handleClose} />
+          <FormulaireCommande
+            fournisseurs={[...new Set(commandes.map((c) => c.fournisseur))].sort()}
+            onClose={handleClose}
+          />
         </Modal>
       )}
 

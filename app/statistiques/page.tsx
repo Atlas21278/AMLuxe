@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { toast } from 'sonner'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line,
@@ -18,42 +19,49 @@ export default function StatistiquesPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/articles').then((r) => r.ok ? r.json() : []),
+      fetch('/api/articles').then((r) => r.ok ? r.json() : Promise.reject()),
       fetch('/api/abonnements').then((r) => r.ok ? r.json() : []),
     ]).then(([arts, abonnements]: [ArticleAvecCommande[], { montant: number }[]]) => {
       setArticles(Array.isArray(arts) ? arts : [])
       setCoutAbonnementTotal(abonnements.reduce((sum, a) => sum + a.montant, 0))
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(() => {
+      toast.error('Impossible de charger les statistiques')
+      setLoading(false)
+    })
   }, [])
 
-  const vendus = articles.filter((a) => a.statut === 'Vendu' && a.prixVenteReel)
-  const enStock = articles.filter((a) => a.statut === 'En stock' || a.statut === 'En vente')
+  const vendus = useMemo(() => articles.filter((a) => a.statut === 'Vendu' && a.prixVenteReel), [articles])
+  const enStock = useMemo(() => articles.filter((a) => a.statut === 'En stock' || a.statut === 'En vente'), [articles])
 
   // KPIs globaux
-  const caTotal = vendus.reduce((acc, a) => acc + (a.prixVenteReel ?? 0), 0)
-  const fraisVenteTotal = vendus.reduce((acc, a) => acc + (a.fraisVente ?? 0), 0)
-  const coutAchatTotal = vendus.reduce((acc, a) => acc + a.prixAchat, 0)
+  const caTotal = useMemo(() => vendus.reduce((acc, a) => acc + (a.prixVenteReel ?? 0), 0), [vendus])
+  const fraisVenteTotal = useMemo(() => vendus.reduce((acc, a) => acc + (a.fraisVente ?? 0), 0), [vendus])
+  const coutAchatTotal = useMemo(() => vendus.reduce((acc, a) => acc + a.prixAchat, 0), [vendus])
 
   // Frais commande (douane, livraison) — on prend toutes les commandes qui ont au moins un article vendu
-  const commandesAvecVente = new Set(vendus.map((a) => a.commandeId))
-  const fraisCommandeTotal = articles
-    .filter((a) => commandesAvecVente.has(a.commandeId))
-    .reduce((acc, a, _, arr) => {
-      // Dédupliquer par commande
-      const dejaPris = arr.slice(0, arr.indexOf(a)).some((b) => b.commandeId === a.commandeId)
-      if (dejaPris) return acc
-      return acc + a.commande.frais.reduce((s, f) => s + f.montant, 0)
-    }, 0)
+  const fraisCommandeTotal = useMemo(() => {
+    const commandesAvecVente = new Set(vendus.map((a) => a.commandeId))
+    return articles
+      .filter((a) => commandesAvecVente.has(a.commandeId))
+      .reduce((acc, a, _, arr) => {
+        const dejaPris = arr.slice(0, arr.indexOf(a)).some((b) => b.commandeId === a.commandeId)
+        if (dejaPris) return acc
+        return acc + a.commande.frais.reduce((s, f) => s + f.montant, 0)
+      }, 0)
+  }, [vendus, articles])
 
-  const beneficeTotal = caTotal - fraisVenteTotal - coutAchatTotal - fraisCommandeTotal - coutAbonnementTotal
+  const beneficeTotal = useMemo(
+    () => caTotal - fraisVenteTotal - coutAchatTotal - fraisCommandeTotal - coutAbonnementTotal,
+    [caTotal, fraisVenteTotal, coutAchatTotal, fraisCommandeTotal, coutAbonnementTotal]
+  )
   const margeGlobale = caTotal > 0 ? ((beneficeTotal / caTotal) * 100).toFixed(1) : '0'
 
   // Valeur stock
-  const valeurStock = enStock.reduce((acc, a) => acc + a.prixAchat, 0)
+  const valeurStock = useMemo(() => enStock.reduce((acc, a) => acc + a.prixAchat, 0), [enStock])
 
   // Par marque
-  const parMarque = Object.values(
+  const parMarque = useMemo(() => Object.values(
     vendus.reduce<Record<string, { marque: string; ca: number; benefice: number; nb: number }>>((acc, a) => {
       if (!acc[a.marque]) acc[a.marque] = { marque: a.marque, ca: 0, benefice: 0, nb: 0 }
       acc[a.marque].ca += a.prixVenteReel ?? 0
@@ -61,10 +69,10 @@ export default function StatistiquesPage() {
       acc[a.marque].nb += 1
       return acc
     }, {})
-  ).sort((a, b) => b.benefice - a.benefice)
+  ).sort((a, b) => b.benefice - a.benefice), [vendus])
 
   // Par plateforme — CA + nb
-  const parPlateforme = Object.values(
+  const parPlateforme = useMemo(() => Object.values(
     vendus.reduce<Record<string, { name: string; nb: number; ca: number }>>((acc, a) => {
       const p = a.plateforme ?? 'Autre'
       if (!acc[p]) acc[p] = { name: p, nb: 0, ca: 0 }
@@ -72,30 +80,76 @@ export default function StatistiquesPage() {
       acc[p].ca += a.prixVenteReel ?? 0
       return acc
     }, {})
-  ).sort((a, b) => b.ca - a.ca)
+  ).sort((a, b) => b.ca - a.ca), [vendus])
+
+  // Par fournisseur
+  const parFournisseur = useMemo(() => Object.values(
+    vendus.reduce<Record<string, { fournisseur: string; nb: number; ca: number; benefice: number }>>((acc, a) => {
+      const f = a.commande.fournisseur
+      if (!acc[f]) acc[f] = { fournisseur: f, nb: 0, ca: 0, benefice: 0 }
+      acc[f].nb += 1
+      acc[f].ca += a.prixVenteReel ?? 0
+      acc[f].benefice += (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat
+      return acc
+    }, {})
+  ).sort((a, b) => b.ca - a.ca), [vendus])
 
   // Evolution mensuelle
-  const parMoisMap = vendus.reduce<Record<string, { mois: string; ca: number; benefice: number }>>((acc, a) => {
-    if (!a.dateVente) return acc
-    const d = new Date(a.dateVente)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    const label = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
-    if (!acc[key]) acc[key] = { mois: label, ca: 0, benefice: 0 }
-    acc[key].ca += a.prixVenteReel ?? 0
-    acc[key].benefice += (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat
-    return acc
-  }, {})
-  const parMois = Object.entries(parMoisMap)
-    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-    .map(([, val]) => val)
+  const parMois = useMemo(() => {
+    const parMoisMap = vendus.reduce<Record<string, { mois: string; ca: number; benefice: number }>>((acc, a) => {
+      if (!a.dateVente) return acc
+      const d = new Date(a.dateVente)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      const label = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+      if (!acc[key]) acc[key] = { mois: label, ca: 0, benefice: 0 }
+      acc[key].ca += a.prixVenteReel ?? 0
+      acc[key].benefice += (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat
+      return acc
+    }, {})
+    return Object.entries(parMoisMap)
+      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+      .map(([, val]) => val)
+  }, [vendus])
 
   if (loading) return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8"><div className="skeleton h-7 w-40 mb-2" /><div className="skeleton h-4 w-56" /></div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
-        {Array.from({ length: 4 }).map((_, i) => <div key={i} className="bg-white/3 border border-white/5 rounded-xl p-4"><div className="skeleton h-3 w-20 mb-3" /><div className="skeleton h-7 w-28" /></div>)}
+      {/* KPIs skeleton */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="bg-white/3 border border-white/5 rounded-xl p-4">
+            <div className="skeleton h-3 w-24 mb-3" />
+            <div className="skeleton h-6 w-20 mb-1.5" />
+            <div className="skeleton h-3 w-16" />
+          </div>
+        ))}
       </div>
-      <div className="skeleton h-64 w-full rounded-xl" />
+      {/* Décomposition skeleton */}
+      <div className="bg-white/3 border border-white/5 rounded-xl p-5 mb-6">
+        <div className="skeleton h-4 w-48 mb-4" />
+        <div className="flex gap-6">
+          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton h-4 w-24" />)}
+        </div>
+      </div>
+      {/* Graphiques skeleton */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <div className="sm:col-span-2 bg-white/3 border border-white/5 rounded-xl p-5">
+          <div className="skeleton h-4 w-56 mb-5" />
+          <div className="skeleton h-52 w-full rounded-lg" />
+        </div>
+        <div className="bg-white/3 border border-white/5 rounded-xl p-5">
+          <div className="skeleton h-4 w-40 mb-4" />
+          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="flex justify-between py-3 border-b border-white/5"><div className="skeleton h-4 w-24" /><div className="skeleton h-4 w-16" /></div>)}
+        </div>
+        <div className="bg-white/3 border border-white/5 rounded-xl p-5">
+          <div className="skeleton h-4 w-48 mb-5" />
+          <div className="skeleton h-52 w-full rounded-lg" />
+        </div>
+        <div className="sm:col-span-2 bg-white/3 border border-white/5 rounded-xl p-5">
+          <div className="skeleton h-4 w-36 mb-4" />
+          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="flex justify-between py-3 border-b border-white/5"><div className="skeleton h-4 w-28" /><div className="skeleton h-4 w-16" /><div className="skeleton h-4 w-20" /><div className="skeleton h-4 w-16" /></div>)}
+        </div>
+      </div>
     </div>
   )
 
@@ -160,16 +214,18 @@ export default function StatistiquesPage() {
           {/* Evolution CA / Bénéfice */}
           <div className="sm:col-span-2 bg-white/3 border border-white/5 rounded-xl p-5">
             <h2 className="text-sm font-semibold text-white mb-5">Évolution mensuelle (CA & Bénéfice)</h2>
-            <ResponsiveContainer width="100%" height={220}>
+            <div className="h-40 sm:h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={parMois}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="mois" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: '#1a1a26', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff' }} formatter={(v: number) => [`${v.toFixed(2)} €`]} />
+                <Tooltip contentStyle={{ background: '#1a1a26', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff' }} formatter={(v) => [`${Number(v).toFixed(2)} €`]} />
                 <Line type="monotone" dataKey="ca" name="CA (€)" stroke="#a855f7" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="benefice" name="Bénéfice brut (€)" stroke="#10b981" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Plateformes */}
@@ -203,15 +259,17 @@ export default function StatistiquesPage() {
           {/* Bénéfice par marque — bar chart */}
           <div className="bg-white/3 border border-white/5 rounded-xl p-5">
             <h2 className="text-sm font-semibold text-white mb-5">Bénéfice brut par marque</h2>
-            <ResponsiveContainer width="100%" height={220}>
+            <div className="h-36 sm:h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={parMarque.slice(0, 8)} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                 <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v} €`} />
                 <YAxis type="category" dataKey="marque" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
-                <Tooltip contentStyle={{ background: '#1a1a26', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff' }} formatter={(v: number) => [`${v.toFixed(2)} €`, 'Bénéfice brut']} />
+                <Tooltip contentStyle={{ background: '#1a1a26', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff' }} formatter={(v) => [`${Number(v).toFixed(2)} €`, 'Bénéfice brut']} />
                 <Bar dataKey="benefice" name="Bénéfice brut (€)" fill="#a855f7" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Tableau par marque */}
@@ -219,7 +277,26 @@ export default function StatistiquesPage() {
             <div className="px-5 py-4 border-b border-white/5">
               <h2 className="text-sm font-semibold text-white">Détail par marque</h2>
             </div>
-            <table className="w-full text-sm">
+            {/* Mobile: cards */}
+            <div className="sm:hidden divide-y divide-white/5">
+              {parMarque.map((m) => (
+                <div key={m.marque} className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-white text-sm">{m.marque}</span>
+                    <span className="text-xs text-white/40">{m.nb} pièce{m.nb > 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="text-white/50">CA : <span className="text-white font-medium">{m.ca.toFixed(0)} €</span></span>
+                    <span className={`font-semibold ${m.benefice >= 0 ? 'text-green-400' : 'text-red-400'}`}>{m.benefice >= 0 ? '+' : ''}{m.benefice.toFixed(0)} €</span>
+                    <span className={m.ca > 0 && (m.benefice / m.ca * 100) >= 20 ? 'text-green-400' : 'text-yellow-400'}>
+                      {m.ca > 0 ? `${(m.benefice / m.ca * 100).toFixed(1)}%` : '—'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: table */}
+            <table className="hidden sm:table w-full text-sm">
               <thead>
                 <tr className="border-b border-white/5">
                   <th className="text-left px-4 py-3 text-xs text-white/40 uppercase">Marque</th>
@@ -244,6 +321,58 @@ export default function StatistiquesPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Tableau par fournisseur */}
+          {parFournisseur.length > 0 && (
+            <div className="sm:col-span-2 bg-white/3 border border-white/5 rounded-xl overflow-hidden overflow-x-auto">
+              <div className="px-5 py-4 border-b border-white/5">
+                <h2 className="text-sm font-semibold text-white">Performance par fournisseur</h2>
+              </div>
+              {/* Mobile: cards */}
+              <div className="sm:hidden divide-y divide-white/5">
+                {parFournisseur.map((f) => (
+                  <div key={f.fournisseur} className="px-4 py-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-white text-sm truncate">{f.fournisseur}</span>
+                      <span className="text-xs text-white/40 shrink-0 ml-2">{f.nb} vendu{f.nb > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="text-white/50">CA : <span className="text-white font-medium">{f.ca.toFixed(0)} €</span></span>
+                      <span className={`font-semibold ${f.benefice >= 0 ? 'text-green-400' : 'text-red-400'}`}>{f.benefice >= 0 ? '+' : ''}{f.benefice.toFixed(0)} €</span>
+                      <span className={f.ca > 0 && (f.benefice / f.ca * 100) >= 20 ? 'text-green-400' : 'text-yellow-400'}>
+                        {f.ca > 0 ? `${(f.benefice / f.ca * 100).toFixed(1)}%` : '—'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: table */}
+              <table className="hidden sm:table w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    <th className="text-left px-4 py-3 text-xs text-white/40 uppercase">Fournisseur</th>
+                    <th className="text-right px-4 py-3 text-xs text-white/40 uppercase">Pièces vendues</th>
+                    <th className="text-right px-4 py-3 text-xs text-white/40 uppercase">CA</th>
+                    <th className="text-right px-4 py-3 text-xs text-white/40 uppercase">Bénéfice brut</th>
+                    <th className="text-right px-4 py-3 text-xs text-white/40 uppercase">Marge brute</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parFournisseur.map((f) => (
+                    <tr key={f.fournisseur} className="border-b border-white/5 hover:bg-white/2">
+                      <td className="px-4 py-3 font-medium text-white">{f.fournisseur}</td>
+                      <td className="px-4 py-3 text-right text-white/60">{f.nb}</td>
+                      <td className="px-4 py-3 text-right text-white">{f.ca.toFixed(0)} €</td>
+                      <td className={`px-4 py-3 text-right font-medium ${f.benefice >= 0 ? 'text-green-400' : 'text-red-400'}`}>{f.benefice.toFixed(0)} €</td>
+                      <td className={`px-4 py-3 text-right text-sm ${f.ca > 0 && (f.benefice / f.ca * 100) >= 20 ? 'text-green-400' : 'text-yellow-400'}`}>
+                        {f.ca > 0 ? `${(f.benefice / f.ca * 100).toFixed(1)}%` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
