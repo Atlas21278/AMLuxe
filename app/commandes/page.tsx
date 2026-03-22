@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Modal from '@/components/ui/Modal'
 import FormulaireCommande from '@/components/commandes/FormulaireCommande'
 import ListeCommandes from '@/components/commandes/ListeCommandes'
@@ -19,16 +19,16 @@ export default function CommandesPage() {
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
 
-  const fetchCommandes = async () => {
+  const fetchCommandes = useCallback(async () => {
     const res = await fetch('/api/commandes')
     const data = await res.json()
     setCommandes(data)
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     fetchCommandes()
-  }, [])
+  }, [fetchCommandes])
 
   const handleClose = () => {
     setShowModal(false)
