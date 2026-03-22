@@ -76,8 +76,8 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-white/60 mb-1.5">Réf. fournisseur</label>
-          <input type="text" placeholder="Référence interne" value={form.refFournisseur} onChange={(e) => setForm({ ...form, refFournisseur: e.target.value })} className={inputClass} />
+          <label className="block text-xs font-medium text-white/60 mb-1.5">Numéro de série</label>
+          <input type="text" placeholder="N° de série" value={form.refFournisseur} onChange={(e) => setForm({ ...form, refFournisseur: e.target.value })} className={inputClass} />
         </div>
         <div>
           <label className="block text-xs font-medium text-white/60 mb-1.5">Statut</label>

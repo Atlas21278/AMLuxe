@@ -237,7 +237,7 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
                   </select>
                   <input
                     type="text"
-                    placeholder="Réf. fournisseur"
+                    placeholder="N° de série"
                     value={article.refFournisseur}
                     onChange={(e) => updateArticle(index, 'refFournisseur', e.target.value)}
                     className="bg-transparent border border-white/10 rounded-md px-2.5 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-purple-500/60 transition-colors"

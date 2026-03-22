@@ -70,7 +70,7 @@ export default function CommandesPage() {
           Marque: a.marque,
           Modèle: a.modele,
           État: a.etat,
-          'Réf. fournisseur': a.refFournisseur ?? '',
+          'N° de série': a.refFournisseur ?? '',
           Statut: a.statut,
           'Prix achat (€)': a.prixAchat.toFixed(2),
           'Prix vente affiché (€)': a.prixVente?.toFixed(2) ?? '',
