@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import FormulaireVente from '@/components/articles/FormulaireVente'
+import Toast from '@/components/ui/Toast'
 import type { Article } from '@prisma/client'
 
 type ArticleAvecCommande = Article & { commande: { fournisseur: string; id: number; _count: { frais: number } } }
@@ -17,6 +18,7 @@ export default function ArticlesPage() {
   const [search, setSearch] = useState('')
   const [filtreStatut, setFiltreStatut] = useState('tous')
   const [venteArticle, setVenteArticle] = useState<Article | null>(null)
+  const [showVenteError, setShowVenteError] = useState(false)
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 10
 
@@ -135,10 +137,8 @@ export default function ArticlesPage() {
                     <div className="flex items-center gap-1">
                       {article.statut !== 'Vendu' && (
                         <button
-                          onClick={() => article.commande._count.frais > 0 && setVenteArticle(article)}
-                          disabled={article.commande._count.frais === 0}
-                          title={article.commande._count.frais === 0 ? "Ajoutez d'abord les frais sur la commande" : 'Mettre en vente / Enregistrer vente'}
-                          className={`p-1.5 rounded transition-colors ${article.commande._count.frais === 0 ? 'text-white/15 cursor-not-allowed' : 'hover:bg-green-500/10 text-white/40 hover:text-green-400'}`}
+                          onClick={() => article.commande._count.frais > 0 ? setVenteArticle(article) : setShowVenteError(true)}
+                          className={`p-1.5 rounded transition-colors ${article.commande._count.frais === 0 ? 'text-white/20 hover:text-amber-400 hover:bg-amber-500/10' : 'hover:bg-green-500/10 text-white/40 hover:text-green-400'}`}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -202,10 +202,8 @@ export default function ArticlesPage() {
                       <div className="flex items-center justify-end gap-1">
                         {article.statut !== 'Vendu' && (
                           <button
-                            onClick={() => article.commande._count.frais > 0 && setVenteArticle(article)}
-                            disabled={article.commande._count.frais === 0}
-                            title={article.commande._count.frais === 0 ? "Ajoutez d'abord les frais sur la commande" : 'Vente'}
-                            className={`p-1.5 rounded transition-colors ${article.commande._count.frais === 0 ? 'text-white/15 cursor-not-allowed' : 'hover:bg-green-500/10 text-white/40 hover:text-green-400'}`}
+                            onClick={() => article.commande._count.frais > 0 ? setVenteArticle(article) : setShowVenteError(true)}
+                            className={`p-1.5 rounded transition-colors ${article.commande._count.frais === 0 ? 'text-white/20 hover:text-amber-400 hover:bg-amber-500/10' : 'hover:bg-green-500/10 text-white/40 hover:text-green-400'}`}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -252,6 +250,13 @@ export default function ArticlesPage() {
         <Modal title="Vente / Mise en vente" onClose={() => setVenteArticle(null)}>
           <FormulaireVente article={venteArticle} onClose={() => { setVenteArticle(null); fetchArticles() }} />
         </Modal>
+      )}
+
+      {showVenteError && (
+        <Toast
+          message="Ajoutez d'abord les frais & taxes sur la commande"
+          onClose={() => setShowVenteError(false)}
+        />
       )}
     </div>
   )

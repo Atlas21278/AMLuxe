@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
+import Toast from '@/components/ui/Toast'
 import FormulaireArticle from '@/components/articles/FormulaireArticle'
 import FormulaireVente from '@/components/articles/FormulaireVente'
 import FormulaireFrais from '@/components/commandes/FormulaireFrais'
@@ -21,6 +22,7 @@ export default function CommandeDetailPage() {
   const [modalFrais, setModalFrais] = useState(false)
   const [editArticle, setEditArticle] = useState<Article | null>(null)
   const [venteArticle, setVenteArticle] = useState<Article | null>(null)
+  const [showVenteError, setShowVenteError] = useState(false)
 
   const fetchCommande = useCallback(async () => {
     const res = await fetch(`/api/commandes/${id}`)
@@ -147,10 +149,8 @@ export default function CommandeDetailPage() {
                       <div className="flex items-center justify-end gap-1">
                         {article.statut !== 'Vendu' && (
                           <button
-                            onClick={() => commande.frais.length > 0 && setVenteArticle(article)}
-                            disabled={commande.frais.length === 0}
-                            className={`p-1.5 rounded transition-colors ${commande.frais.length === 0 ? 'text-white/15 cursor-not-allowed' : 'hover:bg-green-500/10 text-white/40 hover:text-green-400'}`}
-                            title={commande.frais.length === 0 ? 'Ajoutez d\'abord les frais & taxes de la commande' : 'Mettre en vente / Enregistrer vente'}
+                            onClick={() => commande.frais.length > 0 ? setVenteArticle(article) : setShowVenteError(true)}
+                            className={`p-1.5 rounded transition-colors ${commande.frais.length === 0 ? 'text-white/20 hover:text-amber-400 hover:bg-amber-500/10' : 'text-white/40 hover:text-green-400 hover:bg-green-500/10'}`}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -250,6 +250,13 @@ export default function CommandeDetailPage() {
         <Modal title="Ajouter des frais" onClose={() => setModalFrais(false)}>
           <FormulaireFrais commandeId={Number(id)} onClose={() => { setModalFrais(false); fetchCommande() }} />
         </Modal>
+      )}
+
+      {showVenteError && (
+        <Toast
+          message="Ajoutez d'abord les frais & taxes de cette commande"
+          onClose={() => setShowVenteError(false)}
+        />
       )}
     </div>
   )
