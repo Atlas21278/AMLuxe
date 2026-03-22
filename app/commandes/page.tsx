@@ -21,6 +21,7 @@ export default function CommandesPage() {
 
   const fetchCommandes = useCallback(async () => {
     const res = await fetch('/api/commandes')
+    if (!res.ok) { setLoading(false); return }
     const data = await res.json()
     setCommandes(data)
     setLoading(false)

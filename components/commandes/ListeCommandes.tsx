@@ -219,7 +219,7 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
                     <input
                       type="checkbox"
                       checked={allSelected}
-                      ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected }}
+                      ref={(el: HTMLInputElement | null) => { if (el) el.indeterminate = someSelected && !allSelected }}
                       onChange={toggleAll}
                       className="w-4 h-4 rounded border-white/20 bg-white/5 accent-purple-500 cursor-pointer"
                     />

@@ -11,55 +11,52 @@ model Commande {
   id          Int       @id @default(autoincrement())
   fournisseur String
   date        DateTime  @default(now())
-  statut      String    @default("En préparation") // "En préparation" | "En livraison" | "Reçue"
+  statut      String    @default("En préparation")
   tracking    String?
   notes       String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-
   articles    Article[]
   frais       Frais[]
 }
 
 model Article {
-  id             Int      @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   marque         String
   modele         String
   prixAchat      Float
-  etat           String   // "Neuf" | "Très bon état" | "Bon état" | "Satisfaisant"
+  etat           String
   refFournisseur String?
-  statut         String   @default("En stock") // "En stock" | "En vente" | "Vendu"
+  statut         String    @default("En stock")
   prixVente      Float?
-  plateforme     String?  // "Vinted" | "Leboncoin" | "Instagram" | "Autre"
+  plateforme     String?
   prixVenteReel  Float?
   fraisVente     Float?
   dateVente      DateTime?
   notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
   commandeId     Int
-  commande       Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  commande       Commande  @relation(fields: [commandeId], references: [id], onDelete: Cascade)
 }
 
 model Frais {
   id          Int      @id @default(autoincrement())
-  type        String   // "Douane" | "Livraison" | "Autre"
+  type        String
   montant     Float
   description String?
   createdAt   DateTime @default(now())
-
   commandeId  Int
   commande    Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
 }
 
 model User {
-  id          Int      @id @default(autoincrement())
-  email       String   @unique
-  nom         String
-  motDePasse  String
-  role        String   @default("admin")
-  actif       Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  email      String   @unique
+  nom        String
+  motDePasse String
+  role       String   @default("admin")
+  actif      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

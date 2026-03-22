@@ -24,6 +24,7 @@ export default function ArticlesPage() {
 
   const fetchArticles = async () => {
     const res = await fetch('/api/articles')
+    if (!res.ok) { setLoading(false); return }
     const data = await res.json()
     setArticles(data)
     setLoading(false)
