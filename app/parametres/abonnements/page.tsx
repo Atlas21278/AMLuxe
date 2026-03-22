@@ -10,11 +10,12 @@ export default function AbonnementsPage() {
 
   useEffect(() => {
     fetch('/api/config')
-      .then((r) => r.json())
+      .then((r) => r.ok ? r.json() : {})
       .then((data) => {
         if (data.abonnementMensuel) setMontant(data.abonnementMensuel)
         setLoading(false)
       })
+      .catch(() => setLoading(false))
   }, [])
 
   async function handleSave(e: React.FormEvent) {
