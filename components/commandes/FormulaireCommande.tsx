@@ -10,6 +10,12 @@ interface ArticleRow {
   refFournisseur: string
 }
 
+interface FraisRow {
+  type: string
+  montant: string
+  description: string
+}
+
 interface Props {
   commande?: {
     id: number
@@ -24,6 +30,7 @@ interface Props {
 
 const STATUTS = ['En préparation', 'En livraison', 'Reçue']
 const ETATS = ['Neuf', 'Très bon état', 'Bon état', 'Satisfaisant']
+const TYPES_FRAIS = ['Douane', 'Livraison', 'Autre']
 
 const articleVide = (): ArticleRow => ({
   marque: '',
@@ -32,6 +39,8 @@ const articleVide = (): ArticleRow => ({
   etat: 'Très bon état',
   refFournisseur: '',
 })
+
+const fraisVide = (): FraisRow => ({ type: 'Douane', montant: '', description: '' })
 
 export default function FormulaireCommande({ commande, onClose }: Props) {
   const [isPending, startTransition] = useTransition()
@@ -46,6 +55,7 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
   })
 
   const [articles, setArticles] = useState<ArticleRow[]>([articleVide()])
+  const [frais, setFrais] = useState<FraisRow[]>([])
 
   const updateArticle = (index: number, field: keyof ArticleRow, value: string) => {
     setArticles((prev) => prev.map((a, i) => i === index ? { ...a, [field]: value } : a))
@@ -61,6 +71,16 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
     }
   }
 
+  const updateFrais = (index: number, field: keyof FraisRow, value: string) => {
+    setFrais((prev) => prev.map((f, i) => i === index ? { ...f, [field]: value } : f))
+  }
+
+  const ajouterFrais = () => setFrais((prev) => [...prev, fraisVide()])
+
+  const supprimerFrais = (index: number) => {
+    setFrais((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     startTransition(async () => {
@@ -72,12 +92,12 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
         })
         onClose()
       } else {
-        // Filtre les lignes vides (sans marque ni modèle)
         const articlesValides = articles.filter((a) => a.marque.trim() && a.modele.trim())
+        const fraisValides = frais.filter((f) => f.montant && Number(f.montant) > 0)
         await fetch('/api/commandes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...form, articles: articlesValides }),
+          body: JSON.stringify({ ...form, articles: articlesValides, frais: fraisValides }),
         })
         onClose()
       }
@@ -146,8 +166,9 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
         />
       </div>
 
-      {/* Section articles — uniquement à la création */}
+      {/* Section articles + frais — uniquement à la création */}
       {!isEdit && (
+        <>
         <div className="pt-2">
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -216,7 +237,7 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
                   </select>
                   <input
                     type="text"
-                    placeholder="Réf. fournisseur"
+                    placeholder="N° de série"
                     value={article.refFournisseur}
                     onChange={(e) => updateArticle(index, 'refFournisseur', e.target.value)}
                     className="bg-transparent border border-white/10 rounded-md px-2.5 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-purple-500/60 transition-colors"
@@ -232,6 +253,72 @@ export default function FormulaireCommande({ commande, onClose }: Props) {
             </p>
           )}
         </div>
+
+        {/* Section frais */}
+        <div className="pt-2">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-semibold text-white">Frais & taxes</p>
+              <p className="text-xs text-white/35 mt-0.5">Douane, livraison, autres frais</p>
+            </div>
+            <button
+              type="button"
+              onClick={ajouterFrais}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-white/60 hover:text-white transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Ajouter
+            </button>
+          </div>
+
+          {frais.length === 0 ? (
+            <p className="text-xs text-white/25 text-center py-3 border border-dashed border-white/8 rounded-lg">Aucun frais — vous pourrez en ajouter après la création</p>
+          ) : (
+            <div className="space-y-2">
+              {frais.map((f, index) => (
+                <div key={index} className="bg-[#0f0f18] border border-white/8 rounded-lg p-3">
+                  <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                    <select
+                      value={f.type}
+                      onChange={(e) => updateFrais(index, 'type', e.target.value)}
+                      className="bg-[#0f0f18] border border-white/10 rounded-md px-2.5 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500/60 transition-colors"
+                    >
+                      {TYPES_FRAIS.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="Montant (€)"
+                      value={f.montant}
+                      onChange={(e) => updateFrais(index, 'montant', e.target.value)}
+                      className="bg-transparent border border-white/10 rounded-md px-2.5 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-purple-500/60 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => supprimerFrais(index)}
+                      className="p-1 rounded hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Description (optionnel)"
+                    value={f.description}
+                    onChange={(e) => updateFrais(index, 'description', e.target.value)}
+                    className="mt-2 w-full bg-transparent border border-white/10 rounded-md px-2.5 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-purple-500/60 transition-colors"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        </>
       )}
 
       <div className="flex gap-3 pt-2">

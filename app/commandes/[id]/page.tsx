@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
+import Toast from '@/components/ui/Toast'
 import FormulaireArticle from '@/components/articles/FormulaireArticle'
 import FormulaireVente from '@/components/articles/FormulaireVente'
 import FormulaireFrais from '@/components/commandes/FormulaireFrais'
@@ -15,20 +16,23 @@ type CommandeDetail = Commande & { articles: Article[]; frais: Frais[] }
 export default function CommandeDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const routerRef = useRef(router)
+  routerRef.current = router
   const [commande, setCommande] = useState<CommandeDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [modalArticle, setModalArticle] = useState(false)
   const [modalFrais, setModalFrais] = useState(false)
   const [editArticle, setEditArticle] = useState<Article | null>(null)
   const [venteArticle, setVenteArticle] = useState<Article | null>(null)
+  const [showVenteError, setShowVenteError] = useState(false)
 
   const fetchCommande = useCallback(async () => {
     const res = await fetch(`/api/commandes/${id}`)
-    if (!res.ok) { router.push('/commandes'); return }
+    if (!res.ok) { routerRef.current.push('/commandes'); return }
     const data = await res.json()
     setCommande(data)
     setLoading(false)
-  }, [id, router])
+  }, [id])
 
   useEffect(() => { fetchCommande() }, [fetchCommande])
 
@@ -54,7 +58,7 @@ export default function CommandeDetailPage() {
   const benefice = totalVentes - totalAchat - totalFrais
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="page-enter p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6 sm:mb-8">
         <Link href="/commandes" className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors">
@@ -89,6 +93,21 @@ export default function CommandeDetailPage() {
           </div>
         ))}
       </div>
+
+      {commande.frais.length === 0 && commande.articles.length > 0 && (
+        <div className="mb-4 flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <p className="text-sm text-amber-400">Ajoutez les frais & taxes avant de pouvoir enregistrer une vente</p>
+          <button
+            onClick={() => setModalFrais(true)}
+            className="ml-auto shrink-0 px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-xs text-amber-400 font-medium transition-colors"
+          >
+            Ajouter des frais
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Articles */}
@@ -132,9 +151,8 @@ export default function CommandeDetailPage() {
                       <div className="flex items-center justify-end gap-1">
                         {article.statut !== 'Vendu' && (
                           <button
-                            onClick={() => setVenteArticle(article)}
-                            className="p-1.5 rounded hover:bg-green-500/10 text-white/40 hover:text-green-400 transition-colors"
-                            title="Mettre en vente / Enregistrer vente"
+                            onClick={() => commande.frais.length > 0 ? setVenteArticle(article) : setShowVenteError(true)}
+                            className={`p-1.5 rounded transition-colors ${commande.frais.length === 0 ? 'text-white/20 hover:text-amber-400 hover:bg-amber-500/10' : 'text-white/40 hover:text-green-400 hover:bg-green-500/10'}`}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -234,6 +252,13 @@ export default function CommandeDetailPage() {
         <Modal title="Ajouter des frais" onClose={() => setModalFrais(false)}>
           <FormulaireFrais commandeId={Number(id)} onClose={() => { setModalFrais(false); fetchCommande() }} />
         </Modal>
+      )}
+
+      {showVenteError && (
+        <Toast
+          message="Ajoutez d'abord les frais & taxes de cette commande"
+          onClose={() => setShowVenteError(false)}
+        />
       )}
     </div>
   )

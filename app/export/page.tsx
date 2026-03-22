@@ -31,40 +31,88 @@ export default function ExportPage() {
     const XLSX = await import('xlsx')
     const wb = XLSX.utils.book_new()
 
-    const commandesData = commandes.map((c: {
-      id: number; fournisseur: string; date: string; statut: string
-      tracking: string | null; notes: string | null
-      articles: { prixAchat: number }[]; frais: { montant: number }[]
-    }) => ({
-      ID: c.id,
-      Fournisseur: c.fournisseur,
-      Date: new Date(c.date).toLocaleDateString('fr-FR'),
-      Statut: c.statut,
-      Tracking: c.tracking ?? '',
-      'Nb articles': c.articles.length,
-      'Total achat (€)': c.articles.reduce((acc: number, a: { prixAchat: number }) => acc + a.prixAchat, 0).toFixed(2),
-      'Total frais (€)': c.frais.reduce((acc: number, f: { montant: number }) => acc + f.montant, 0).toFixed(2),
-      'Coût total (€)': (
-        c.articles.reduce((acc: number, a: { prixAchat: number }) => acc + a.prixAchat, 0) +
-        c.frais.reduce((acc: number, f: { montant: number }) => acc + f.montant, 0)
-      ).toFixed(2),
-      Notes: c.notes ?? '',
-    }))
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(commandesData), 'Commandes')
-
-    const articlesData = articles.map((a: {
+    // ── 1. TABLEAU DE BORD ──────────────────────────────
+    type ArticleRaw = {
       marque: string; modele: string; etat: string; refFournisseur: string | null
       statut: string; prixAchat: number; prixVente: number | null; plateforme: string | null
       prixVenteReel: number | null; fraisVente: number | null; dateVente: string | null
       commande: { fournisseur: string }
-    }) => {
+    }
+    type CommandeRaw = {
+      id: number; fournisseur: string; date: string; statut: string
+      tracking: string | null; notes: string | null
+      articles: { prixAchat: number; prixVenteReel: number | null; fraisVente: number | null; statut: string }[]
+      frais: { montant: number }[]
+    }
+
+    const vendus = (articles as ArticleRaw[]).filter((a) => a.statut === 'Vendu' && a.prixVenteReel)
+    const caTotal = vendus.reduce((acc, a) => acc + (a.prixVenteReel ?? 0), 0)
+    const fraisVenteTotal = vendus.reduce((acc, a) => acc + (a.fraisVente ?? 0), 0)
+    const coutAchatVendus = vendus.reduce((acc, a) => acc + a.prixAchat, 0)
+    const beneficeNet = caTotal - fraisVenteTotal - coutAchatVendus
+    const margeGlobale = caTotal > 0 ? (beneficeNet / caTotal) * 100 : 0
+    const coutAchatTotal = (articles as ArticleRaw[]).reduce((acc, a) => acc + a.prixAchat, 0)
+    const totalFraisCommandes = (commandes as CommandeRaw[]).reduce((acc, c) => acc + c.frais.reduce((s, f) => s + f.montant, 0), 0)
+
+    const dashboardData = [
+      { Indicateur: '── VENTES ──', Valeur: '', Détail: '' },
+      { Indicateur: "Chiffre d'affaires total", Valeur: caTotal.toFixed(2) + ' €', Détail: `${vendus.length} articles vendus` },
+      { Indicateur: 'Frais de vente (commissions)', Valeur: fraisVenteTotal.toFixed(2) + ' €', Détail: 'Vinted, Leboncoin, etc.' },
+      { Indicateur: "Coût d'achat (vendus)", Valeur: coutAchatVendus.toFixed(2) + ' €', Détail: '' },
+      { Indicateur: 'Bénéfice net', Valeur: beneficeNet.toFixed(2) + ' €', Détail: 'CA - frais vente - coût achat' },
+      { Indicateur: 'Marge globale', Valeur: margeGlobale.toFixed(1) + ' %', Détail: 'sur CA' },
+      { Indicateur: '', Valeur: '', Détail: '' },
+      { Indicateur: '── STOCK ──', Valeur: '', Détail: '' },
+      { Indicateur: 'Total articles', Valeur: (articles as ArticleRaw[]).length.toString(), Détail: '' },
+      { Indicateur: 'Articles vendus', Valeur: (articles as ArticleRaw[]).filter(a => a.statut === 'Vendu').length.toString(), Détail: '' },
+      { Indicateur: 'Articles en vente', Valeur: (articles as ArticleRaw[]).filter(a => a.statut === 'En vente').length.toString(), Détail: '' },
+      { Indicateur: 'Articles en stock', Valeur: (articles as ArticleRaw[]).filter(a => a.statut === 'En stock').length.toString(), Détail: '' },
+      { Indicateur: 'Valeur stock total (achat)', Valeur: coutAchatTotal.toFixed(2) + ' €', Détail: 'tous articles confondus' },
+      { Indicateur: '', Valeur: '', Détail: '' },
+      { Indicateur: '── COMMANDES ──', Valeur: '', Détail: '' },
+      { Indicateur: 'Total commandes', Valeur: (commandes as CommandeRaw[]).length.toString(), Détail: '' },
+      { Indicateur: 'Total frais & taxes', Valeur: totalFraisCommandes.toFixed(2) + ' €', Détail: 'douane, livraison, autres' },
+    ]
+    const wsDashboard = XLSX.utils.json_to_sheet(dashboardData)
+    wsDashboard['!cols'] = [{ wch: 35 }, { wch: 20 }, { wch: 30 }]
+    XLSX.utils.book_append_sheet(wb, wsDashboard, '📊 Tableau de bord')
+
+    // ── 2. PAR MARQUE ───────────────────────────────────
+    const parMarque: Record<string, { marque: string; nb: number; nbVendus: number; caMarque: number; beneficeMarque: number; prixAchatTotal: number }> = {}
+    for (const a of articles as ArticleRaw[]) {
+      if (!parMarque[a.marque]) parMarque[a.marque] = { marque: a.marque, nb: 0, nbVendus: 0, caMarque: 0, beneficeMarque: 0, prixAchatTotal: 0 }
+      parMarque[a.marque].nb++
+      parMarque[a.marque].prixAchatTotal += a.prixAchat
+      if (a.statut === 'Vendu' && a.prixVenteReel) {
+        parMarque[a.marque].nbVendus++
+        parMarque[a.marque].caMarque += a.prixVenteReel
+        parMarque[a.marque].beneficeMarque += a.prixVenteReel - (a.fraisVente ?? 0) - a.prixAchat
+      }
+    }
+    const parMarqueData = Object.values(parMarque)
+      .sort((a, b) => b.beneficeMarque - a.beneficeMarque)
+      .map((m) => ({
+        Marque: m.marque,
+        'Nb articles total': m.nb,
+        'Nb vendus': m.nbVendus,
+        "CA (€)": m.caMarque.toFixed(2),
+        'Bénéfice (€)': m.beneficeMarque.toFixed(2),
+        'Marge (%)': m.caMarque > 0 ? (m.beneficeMarque / m.caMarque * 100).toFixed(1) : '—',
+        'Coût achat total (€)': m.prixAchatTotal.toFixed(2),
+      }))
+    const wsMarque = XLSX.utils.json_to_sheet(parMarqueData)
+    wsMarque['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 20 }]
+    XLSX.utils.book_append_sheet(wb, wsMarque, '🏷️ Par marque')
+
+    // ── 3. ARTICLES ─────────────────────────────────────
+    const articlesData = (articles as ArticleRaw[]).map((a) => {
       const benefice = a.prixVenteReel ? a.prixVenteReel - (a.fraisVente ?? 0) - a.prixAchat : null
       return {
         Fournisseur: a.commande.fournisseur,
         Marque: a.marque,
         Modèle: a.modele,
         État: a.etat,
-        'Réf. fournisseur': a.refFournisseur ?? '',
+        'N° de série': a.refFournisseur ?? '',
         Statut: a.statut,
         'Prix achat (€)': a.prixAchat.toFixed(2),
         'Prix vente affiché (€)': a.prixVente?.toFixed(2) ?? '',
@@ -76,18 +124,63 @@ export default function ExportPage() {
         'Date vente': a.dateVente ? new Date(a.dateVente).toLocaleDateString('fr-FR') : '',
       }
     })
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(articlesData), 'Articles')
+    const wsArticles = XLSX.utils.json_to_sheet(articlesData)
+    wsArticles['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 20 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 14 }]
+    XLSX.utils.book_append_sheet(wb, wsArticles, '📦 Articles')
 
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
-      { Colonne: 'Fournisseur', Requis: 'Oui', Exemple: 'Fournisseur Paris' },
-      { Colonne: 'Date', Requis: 'Oui', Exemple: '22/03/2026' },
-      { Colonne: 'Statut', Requis: 'Non', Exemple: 'En préparation' },
-      { Colonne: 'Tracking', Requis: 'Non', Exemple: '1Z999AA10123456784' },
-      { Colonne: 'Marque', Requis: 'Oui (articles)', Exemple: 'Hermès' },
-      { Colonne: 'Modèle', Requis: 'Oui (articles)', Exemple: 'Birkin 30' },
-      { Colonne: 'Prix achat (€)', Requis: 'Oui (articles)', Exemple: '5000' },
-      { Colonne: 'État', Requis: 'Non', Exemple: 'Très bon état' },
-    ]), 'Guide import')
+    // ── 4. COMMANDES ────────────────────────────────────
+    const commandesData = (commandes as CommandeRaw[]).map((c) => {
+      const totalAchat = c.articles.reduce((acc, a) => acc + a.prixAchat, 0)
+      const totalFrais = c.frais.reduce((acc, f) => acc + f.montant, 0)
+      const totalVentes = c.articles.filter(a => a.prixVenteReel).reduce((acc, a) => acc + (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0), 0)
+      return {
+        ID: c.id,
+        Fournisseur: c.fournisseur,
+        Date: new Date(c.date).toLocaleDateString('fr-FR'),
+        Statut: c.statut,
+        Tracking: c.tracking ?? '',
+        'Nb articles': c.articles.length,
+        'Vendus': c.articles.filter(a => a.statut === 'Vendu').length,
+        'Total achat (€)': totalAchat.toFixed(2),
+        'Total frais (€)': totalFrais.toFixed(2),
+        'Coût total (€)': (totalAchat + totalFrais).toFixed(2),
+        'Revenus ventes (€)': totalVentes > 0 ? totalVentes.toFixed(2) : '',
+        'Bénéfice (€)': totalVentes > 0 ? (totalVentes - totalAchat - totalFrais).toFixed(2) : '',
+        Notes: c.notes ?? '',
+      }
+    })
+    const wsCommandes = XLSX.utils.json_to_sheet(commandesData)
+    wsCommandes['!cols'] = [{ wch: 6 }, { wch: 22 }, { wch: 12 }, { wch: 16 }, { wch: 22 }, { wch: 12 }, { wch: 8 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 25 }]
+    XLSX.utils.book_append_sheet(wb, wsCommandes, '🛍️ Commandes')
+
+    // ── 5. FRAIS ────────────────────────────────────────
+    const fraisData = (commandes as CommandeRaw[]).flatMap((c) =>
+      (c.frais as { type: string; montant: number; description?: string; createdAt?: string }[]).map((f) => ({
+        Fournisseur: c.fournisseur,
+        'Commande ID': c.id,
+        Type: f.type,
+        'Montant (€)': f.montant.toFixed(2),
+        Description: f.description ?? '',
+      }))
+    )
+    const wsFrais = XLSX.utils.json_to_sheet(fraisData.length > 0 ? fraisData : [{ Fournisseur: '', 'Commande ID': '', Type: '', 'Montant (€)': '', Description: '' }])
+    wsFrais['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 30 }]
+    XLSX.utils.book_append_sheet(wb, wsFrais, '💸 Frais')
+
+    // ── 6. GUIDE IMPORT ─────────────────────────────────
+    const guideData = [
+      { Colonne: 'Fournisseur', Requis: 'Oui', Exemple: 'Fournisseur Paris', Notes: '' },
+      { Colonne: 'Date', Requis: 'Oui', Exemple: '22/03/2026', Notes: 'Format JJ/MM/AAAA' },
+      { Colonne: 'Statut', Requis: 'Non', Exemple: 'En préparation', Notes: 'En préparation / En livraison / Reçue' },
+      { Colonne: 'Tracking', Requis: 'Non', Exemple: '1Z999AA10123456784', Notes: '' },
+      { Colonne: 'Marque', Requis: 'Oui (articles)', Exemple: 'Hermès', Notes: '' },
+      { Colonne: 'Modèle', Requis: 'Oui (articles)', Exemple: 'Birkin 30', Notes: '' },
+      { Colonne: 'Prix achat (€)', Requis: 'Oui (articles)', Exemple: '5000', Notes: 'Sans le symbole €' },
+      { Colonne: 'État', Requis: 'Non', Exemple: 'Très bon état', Notes: '' },
+    ]
+    const wsGuide = XLSX.utils.json_to_sheet(guideData)
+    wsGuide['!cols'] = [{ wch: 22 }, { wch: 16 }, { wch: 22 }, { wch: 35 }]
+    XLSX.utils.book_append_sheet(wb, wsGuide, '📋 Guide import')
 
     XLSX.writeFile(wb, `AMLuxe_export_${new Date().toISOString().split('T')[0]}.xlsx`)
     setLoadingExport(false)
@@ -139,7 +232,7 @@ export default function ExportPage() {
           modele: a['Modèle'] ?? a['modele'] ?? '',
           prixAchat: parseFloat(String(a['Prix achat (€)'] ?? a['prixAchat'] ?? 0).replace(',', '.')) || 0,
           etat: a['État'] ?? a['etat'] ?? 'Très bon état',
-          refFournisseur: a['Réf. fournisseur'] ?? '',
+          refFournisseur: a['N° de série'] ?? a['Réf. fournisseur'] ?? '',
           statut: a['Statut'] ?? 'En stock',
           prixVente: a['Prix vente affiché (€)'] ? parseFloat(String(a['Prix vente affiché (€)']).replace(',', '.')) : undefined,
           plateforme: a['Plateforme'] || undefined,
@@ -209,7 +302,7 @@ export default function ExportPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="page-enter p-4 sm:p-6 lg:p-8">
       <div className="mb-6 sm:mb-8">
         <h1 className="text-xl sm:text-2xl font-bold text-white">Export / Import</h1>
         <p className="text-sm text-white/40 mt-1">Gérez vos données au format Excel</p>
@@ -258,7 +351,7 @@ export default function ExportPage() {
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-lg bg-blue-500/15 border border-blue-500/20 flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4 4l4-4m0 0l4 4m-4-4V4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
             <div>

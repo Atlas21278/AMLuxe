@@ -82,7 +82,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
             modele: String(a['Modèle'] ?? a['modele'] ?? '').trim(),
             prixAchat: parseFloat(String(a['Prix achat (€)'] ?? a['prixAchat'] ?? 0).replace(',', '.')) || 0,
             etat: String(a['État'] ?? a['etat'] ?? 'Très bon état'),
-            refFournisseur: a['Réf. fournisseur'] ? String(a['Réf. fournisseur']) : undefined,
+            refFournisseur: a['N° de série'] ? String(a['N° de série']) : a['Réf. fournisseur'] ? String(a['Réf. fournisseur']) : undefined,
             statut: String(a['Statut'] ?? 'En stock'),
             prixVente: a['Prix vente affiché (€)'] ? parseFloat(String(a['Prix vente affiché (€)']).replace(',', '.')) : undefined,
             plateforme: a['Plateforme'] ? String(a['Plateforme']) : undefined,

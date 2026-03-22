@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Modal from '@/components/ui/Modal'
 import FormulaireCommande from '@/components/commandes/FormulaireCommande'
 import ListeCommandes from '@/components/commandes/ListeCommandes'
@@ -19,16 +19,16 @@ export default function CommandesPage() {
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
 
-  const fetchCommandes = async () => {
+  const fetchCommandes = useCallback(async () => {
     const res = await fetch('/api/commandes')
     const data = await res.json()
     setCommandes(data)
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     fetchCommandes()
-  }, [])
+  }, [fetchCommandes])
 
   const handleClose = () => {
     setShowModal(false)
@@ -70,7 +70,7 @@ export default function CommandesPage() {
           Marque: a.marque,
           Modèle: a.modele,
           État: a.etat,
-          'Réf. fournisseur': a.refFournisseur ?? '',
+          'N° de série': a.refFournisseur ?? '',
           Statut: a.statut,
           'Prix achat (€)': a.prixAchat.toFixed(2),
           'Prix vente affiché (€)': a.prixVente?.toFixed(2) ?? '',
@@ -113,7 +113,7 @@ export default function CommandesPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="page-enter p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
         <div>
@@ -162,7 +162,16 @@ export default function CommandesPage() {
       {/* Table */}
       <div className="bg-white/3 border border-white/5 rounded-xl overflow-hidden">
         {loading ? (
-          <div className="text-center py-16 text-white/30 text-sm">Chargement...</div>
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 py-2">
+                <div className="skeleton h-4 w-32" />
+                <div className="skeleton h-4 w-24 ml-4" />
+                <div className="skeleton h-5 w-20 rounded-full ml-4" />
+                <div className="skeleton h-4 w-16 ml-auto" />
+              </div>
+            ))}
+          </div>
         ) : (
           <ListeCommandes commandes={commandes} onRefresh={fetchCommandes} />
         )}
