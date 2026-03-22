@@ -426,4 +426,136 @@ Aucun moyen de changer le mot de passe d'un utilisateur depuis l'interface. Seul
 
 ---
 
-*Fichier mis à jour le 2026-03-22.*
+---
+
+## 📱 MOBILE & RESPONSIVE — Correctifs UI
+
+### T-062 · Selects filtres non full-width sur mobile (articles)
+**Fichier** : `app/articles/page.tsx` (lignes 105–124)
+Les `<select>` marque et plateforme n'ont pas de largeur définie sur mobile — ils se rétrécissent à leur contenu minimal, rendant la sélection difficile au doigt.
+**Fix** : Ajouter `w-full sm:w-auto` sur chaque `<select>` et `flex-col sm:flex-row` sur le conteneur.
+
+---
+
+### T-063 · Filtres date range débordent sur mobile (commandes)
+**Fichier** : `components/commandes/ListeCommandes.tsx` (lignes 174–195)
+Les deux `<input type="date">` + flèche `→` sont dans un `flex gap-2` sans retour à la ligne — sur mobile (375px) ils débordent horizontalement hors de l'écran.
+**Fix** : Passer le conteneur date en `flex-col sm:flex-row` avec `w-full sm:w-auto` sur chaque input.
+
+---
+
+### T-064 · Boutons filtre statut non wrappables sur mobile (commandes)
+**Fichier** : `components/commandes/ListeCommandes.tsx` (ligne 199)
+Les 4 boutons de statut (`Tous`, `En préparation`, `En livraison`, `Reçue`) sont dans un `flex` sans `flex-wrap` — sur petit écran ils dépassent du conteneur ou le font exploser.
+**Fix** : Ajouter `flex-wrap` sur le conteneur des boutons statut.
+
+---
+
+### T-065 · Boutons pagination trop petits pour le toucher (articles)
+**Fichier** : `app/articles/page.tsx` (lignes 307–314)
+Les boutons `«`, `‹`, numéros de page utilisent `px-2 py-1 text-xs` = zone tactile ~18px. Le minimum recommandé pour mobile est 44px.
+**Fix** : Passer à `min-w-[36px] min-h-[36px] p-2` pour chaque bouton de pagination.
+
+---
+
+### T-066 · Modal — padding overlay trop grand sur mobile
+**Fichier** : `components/ui/Modal.tsx` (ligne 26)
+L'overlay utilise `p-6` fixe (24px de chaque côté) — sur iPhone SE (375px) cela laisse seulement 327px pour la modale, ce qui écrase les formulaires complexes.
+**Fix** : Réduire à `p-3 sm:p-6` sur l'overlay. Adapter aussi le padding body `px-4 sm:px-6`.
+
+---
+
+### T-067 · Statistiques — tables "Par marque" et "Par fournisseur" sans vue mobile
+**Fichier** : `app/statistiques/page.tsx` (lignes 229–320)
+Les tables de stats (par marque, par fournisseur) n'ont pas de vue cards mobile, contrairement aux pages commandes et articles. Sur petit écran les colonnes (CA, Bénéfice, Nb ventes) débordent.
+**Fix** : Ajouter une vue cards `sm:hidden` et masquer les tables avec `hidden sm:table` comme dans `app/articles/page.tsx`.
+
+---
+
+### T-068 · Détail commande — tableau articles non adapté mobile
+**Fichier** : `app/commandes/[id]/page.tsx` (lignes 178–256)
+Le tableau articles (État, Achat, Marge, Statut, Actions) n'a pas de vue cards mobile — sur téléphone on voit un tableau trop large qui force le scroll horizontal sans indication visuelle.
+**Fix** : Ajouter une vue cards `sm:hidden` pour le tableau articles du détail commande (pattern identique à la page articles).
+
+---
+
+### T-069 · Animations — manque `prefers-reduced-motion`
+**Fichier** : `app/globals.css` (lignes 422–444)
+Les animations `fadeInPage` et `skeletonShimmer` s'exécutent pour tous les utilisateurs, y compris ceux qui ont activé « Réduire les animations » dans leur OS — ce qui peut causer nausées ou inconfort.
+**Fix** : Envelopper `.page-enter` et `.skeleton` dans `@media (prefers-reduced-motion: no-preference)` et fournir un fallback sans animation.
+
+---
+
+### T-070 · Zoom iOS au focus des inputs (`font-size < 16px`)
+**Fichier** : tous les formulaires et pages avec `<input>` / `<select>`
+Sur iOS, tout champ avec `font-size` inférieur à 16px (ex: `text-sm` = 14px) déclenche un zoom automatique au focus, cassant le layout de la page.
+**Fix** : Ajouter dans `globals.css` une règle `@media (max-width: 768px) { input, select, textarea { font-size: 16px; } }`.
+
+---
+
+### T-071 · Détail commande — header titre trop grand sur mobile
+**Fichier** : `app/commandes/[id]/page.tsx` (lignes 127–144)
+Le titre `text-2xl` + Badge statut + lien tracking sont sur une même ligne sans adaptation — sur mobile les éléments se chevauchent ou le lien tracking disparaît.
+**Fix** : Passer à `text-xl sm:text-2xl`, mettre le tracking sur sa propre ligne mobile avec `block sm:inline`.
+
+---
+
+### T-072 · Filtres statut articles — trop de boutons qui wrappent mal
+**Fichier** : `app/articles/page.tsx` (ligne 134)
+7 boutons de statut (`tous`, `En stock`, `En vente`, `Vendu`, `En retour`, `Endommagé`, `Litige`) wrappent sur 2–3 lignes sur mobile avec `flex-wrap`, rendant la barre de filtres très haute et confuse.
+**Fix** : Passer en `overflow-x-auto whitespace-nowrap` sur mobile (scroll horizontal masqué) et `flex-wrap` seulement sur `sm:`.
+
+---
+
+### T-073 · Formulaire commande — absence d'indicateur de scroll sur mobile
+**Fichier** : `components/commandes/FormulaireCommande.tsx`
+Le formulaire complet (fournisseur + liste articles + liste frais) dans une modale est très long sur mobile. Rien n'indique à l'utilisateur qu'il peut scroller vers le bas pour voir le bouton "Créer".
+**Fix** : Ajouter un dégradé `fade-out` en bas du contenu scrollable de la modale + afficher dynamiquement "↓ Défiler" si le contenu dépasse la hauteur visible.
+
+---
+
+## 🧭 NAVIGATION — Fluidité et bugs
+
+### T-074 · Cards mobile sans feedback tactile immédiat
+**Fichiers** : `components/commandes/ListeCommandes.tsx` (ligne 250), `app/page.tsx` (ligne 200)
+Les cards cliquables sur mobile (commandes, ventes récentes dashboard) déclenchent `router.push()` mais sans feedback visuel instantané — l'utilisateur ne sait pas si son tap a été pris en compte.
+**Fix** : Ajouter `active:bg-white/5 active:scale-[0.99] transition-transform` sur toutes les cards navigables.
+
+---
+
+### T-075 · Scroll position non restauré lors du retour en arrière
+**Fichiers** : `app/commandes/page.tsx`, `app/articles/page.tsx`
+Quand l'utilisateur navigue vers `/commandes/[id]` puis revient en arrière, la page liste retourne en haut au lieu de rester à la position scrollée précédente — perte de contexte, UX frustrante.
+**Fix** : Utiliser `sessionStorage` pour sauvegarder et restaurer la position de scroll sur les pages liste, ou utiliser le scroll cache natif du navigateur avec Next.js `router.back()`.
+
+---
+
+### T-076 · Bouton retour de la page détail commande mal positionné sur mobile
+**Fichier** : `app/commandes/[id]/page.tsx` (ligne 115)
+Sur mobile, quand la page détail charge, la barre mobile sticky masque partiellement le bouton retour `←` — l'utilisateur peut confondre la navigation ou ne pas le voir.
+**Fix** : Sur mobile, s'assurer que le header de la page détail tient compte de la hauteur de la barre sticky (`pt-0` puisque le header mobile est `sticky top-0` dans `ClientLayout`).
+
+---
+
+### T-077 · Page statistiques — graphiques Recharts sans hauteur responsive
+**Fichier** : `app/statistiques/page.tsx` (lignes 217–226, 260–270)
+Les `<ResponsiveContainer height={220}>` et `<ResponsiveContainer height={200}>` utilisent des hauteurs fixes — sur mobile portrait en 375px, 220px occupe 60% de la hauteur visible et force un scroll excessif.
+**Fix** : Passer les hauteurs en responsive : `height={typeof window !== 'undefined' && window.innerWidth < 640 ? 160 : 220}` ou via une prop CSS `h-40 sm:h-56`.
+
+---
+
+### T-078 · Sidebar mobile — fermeture absente sur navigation (parfois)
+**Fichier** : `components/Sidebar.tsx` (ligne `handleNav`)
+Sur mobile, la sidebar se ferme via `onClose()` au clic sur un lien. Mais si l'utilisateur clique sur un lien pointant vers la page courante (ex: clique "Dashboard" depuis le Dashboard), `onClose` s'appelle mais la sidebar peut rester ouverte car Next.js ne déclenche pas de re-render de navigation.
+**Fix** : Ajouter un `useEffect` sur `pathname` dans `ClientLayout` pour fermer automatiquement la sidebar mobile à chaque changement de route.
+
+---
+
+### T-079 · `usePathname` cause un flash d'hydratation sur la Sidebar
+**Fichier** : `components/Sidebar.tsx` (ligne `mounted`)
+Le pattern `mounted` avec `useState(false)` + `useEffect` résout l'hydratation pour `isActive`, mais pendant le premier rendu toutes les entrées s'affichent comme inactives — visible 1–2 frames sur mobile lent, provoquant un flash des liens sans highlight.
+**Fix** : Utiliser `suppressHydrationWarning` sur le lien ou pré-calculer l'état actif côté serveur via un composant Server Component wrapper.
+
+---
+
+*Fichier mis à jour le 2026-03-23.*
