@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 
 // ─── Paliers ────────────────────────────────────────────────────────────────
@@ -15,6 +15,7 @@ const PALIERS = [
     gradient: 'from-slate-500 to-slate-700',
     bgCard: 'from-slate-900 to-slate-800',
     shape: 'hatch',
+    image: '/voitures/clio2.png',
   },
   {
     montant: 2_000,
@@ -25,6 +26,7 @@ const PALIERS = [
     gradient: 'from-blue-500 to-blue-700',
     bgCard: 'from-blue-950 to-slate-900',
     shape: 'hatch',
+    image: '/voitures/308.png',
   },
   {
     montant: 5_000,
@@ -35,6 +37,7 @@ const PALIERS = [
     gradient: 'from-indigo-500 to-indigo-700',
     bgCard: 'from-indigo-950 to-slate-900',
     shape: 'hatch',
+    image: '/voitures/golf6.png',
   },
   {
     montant: 10_000,
@@ -45,6 +48,7 @@ const PALIERS = [
     gradient: 'from-purple-500 to-purple-700',
     bgCard: 'from-purple-950 to-slate-900',
     shape: 'coupe',
+    image: '/voitures/bmw-e92.png',
   },
   {
     montant: 20_000,
@@ -55,6 +59,7 @@ const PALIERS = [
     gradient: 'from-pink-500 to-violet-700',
     bgCard: 'from-pink-950 to-purple-950',
     shape: 'sedan',
+    image: '/voitures/mercedes-c.png',
   },
   {
     montant: 50_000,
@@ -65,6 +70,7 @@ const PALIERS = [
     gradient: 'from-orange-500 to-amber-600',
     bgCard: 'from-orange-950 to-slate-900',
     shape: 'sports',
+    image: '/voitures/porsche-718.png',
   },
   {
     montant: 100_000,
@@ -76,6 +82,7 @@ const PALIERS = [
     bgCard: 'from-yellow-950 to-amber-950',
     shape: 'wagon',
     special: true,
+    image: '/voitures/rs6.png',
   },
 ]
 
@@ -191,9 +198,16 @@ function CarCard({ palier, statut, montantActuel, index }: {
       {/* Background gradient */}
       <div className={`absolute inset-0 bg-gradient-to-br ${palier.bgCard} opacity-90`} />
 
-      {/* Silhouette voiture en watermark */}
-      <div className="absolute bottom-0 right-0 w-48 h-24 opacity-10">
-        <svg viewBox="0 0 100 90" className="w-full h-full" fill="currentColor"
+      {/* Image PNG de la voiture */}
+      <div className="absolute bottom-0 right-0 w-44 h-24 pointer-events-none">
+        <img
+          src={palier.image}
+          alt={palier.nom}
+          className={`w-full h-full object-contain object-right-bottom transition-all ${statut === 'locked' ? 'opacity-10 grayscale' : 'opacity-70 drop-shadow-lg'}`}
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+        />
+        {/* SVG fallback watermark */}
+        <svg viewBox="0 0 100 90" className="absolute inset-0 w-full h-full opacity-10" fill="currentColor"
           style={{ color: palier.color }}>
           <path d={SILHOUETTES[palier.shape]} />
         </svg>
@@ -296,14 +310,18 @@ export default function ObjectifsPage() {
     }).catch(() => setLoading(false))
   }, [])
 
+  const MAX = PALIERS[PALIERS.length - 1].montant
   const palierActuel = PALIERS.find((p) => montantActuel < p.montant) ?? PALIERS[PALIERS.length - 1]
   const palierPrecedent = PALIERS[PALIERS.indexOf(palierActuel) - 1]
   const baseProgress = palierPrecedent?.montant ?? 0
-  const progressPct = Math.min(100,
+  // progressPct absolu (pour la grande barre) — doit correspondre aux positions des marqueurs
+  const progressPct = Math.min(100, (montantActuel / MAX) * 100)
+  // progressPctCourant relatif (pour la carte "prochain objectif")
+  const progressPctCourant = Math.min(100,
     ((montantActuel - baseProgress) / (palierActuel.montant - baseProgress)) * 100
   )
   const montantRestant = Math.max(0, palierActuel.montant - montantActuel)
-  const message = getMessage(progressPct)
+  const message = getMessage(progressPctCourant)
   const dernierId = PALIERS[PALIERS.length - 1]
 
   const getStatut = (palier: typeof PALIERS[0]) => {
@@ -508,9 +526,16 @@ export default function ObjectifsPage() {
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${palierActuel.bgCard} opacity-95`} />
 
-                {/* Silhouette grande en fond */}
-                <div className="absolute bottom-0 right-0 w-80 h-40 opacity-15">
-                  <svg viewBox="0 0 100 90" className="w-full h-full"
+                {/* Image PNG ou silhouette en fond */}
+                <div className="absolute bottom-0 right-0 w-72 h-40 opacity-80 pointer-events-none">
+                  <img
+                    src={palierActuel.image}
+                    alt={palierActuel.nom}
+                    className="w-full h-full object-contain object-right-bottom drop-shadow-2xl"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                  />
+                  {/* fallback SVG */}
+                  <svg viewBox="0 0 100 90" className="absolute inset-0 w-full h-full opacity-10"
                     style={{ color: palierActuel.color, fill: 'currentColor' }}>
                     <path d={SILHOUETTES[palierActuel.shape]} />
                   </svg>
@@ -534,13 +559,13 @@ export default function ObjectifsPage() {
                         <div className="flex justify-between text-xs mb-2">
                           <span className="text-white/50">Progression</span>
                           <span className="font-bold" style={{ color: palierActuel.color }}>
-                            {progressPct.toFixed(1)}%
+                            {progressPctCourant.toFixed(1)}%
                           </span>
                         </div>
                         <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
-                            animate={{ width: `${progressPct}%` }}
+                            animate={{ width: `${progressPctCourant}%` }}
                             transition={{ duration: 2, delay: 1, ease: [0.22, 1, 0.36, 1] }}
                             className="h-full rounded-full relative overflow-hidden"
                             style={{ background: `linear-gradient(90deg, ${palierActuel.color}80, ${palierActuel.color})` }}
