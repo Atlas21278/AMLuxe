@@ -80,17 +80,15 @@ export default function Sidebar({ onClose }: SidebarProps) {
           </div>
         </div>
         {/* Bouton fermer sur mobile */}
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="lg:hidden p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors"
-            aria-label="Fermer le menu"
-          >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
-              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        )}
+        <button
+          onClick={onClose}
+          className="lg:hidden p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors"
+          aria-label="Fermer le menu"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
 
       {/* Navigation principale */}
