@@ -52,3 +52,14 @@ model Frais {
   commandeId  Int
   commande    Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
 }
+
+model User {
+  id          Int      @id @default(autoincrement())
+  email       String   @unique
+  nom         String
+  motDePasse  String
+  role        String   @default("admin")
+  actif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
