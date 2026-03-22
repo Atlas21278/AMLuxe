@@ -289,7 +289,6 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
               </tbody>
             </table>
           </div>
-          </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
