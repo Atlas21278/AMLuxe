@@ -2,15 +2,18 @@
 
 import { useState, useRef, useEffect } from 'react'
 
+export type GroupedOption = { label: string; items: string[] }
+
 interface ComboboxProps {
-  options: string[]
+  options?: string[]
+  groups?: GroupedOption[]
   value: string
   onChange: (value: string) => void
   placeholder?: string
   disabled?: boolean
 }
 
-export default function Combobox({ options, value, onChange, placeholder = '', disabled = false }: ComboboxProps) {
+export default function Combobox({ options = [], groups, value, onChange, placeholder = '', disabled = false }: ComboboxProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -18,9 +21,14 @@ export default function Combobox({ options, value, onChange, placeholder = '', d
   const listRef = useRef<HTMLUListElement>(null)
   const [highlighted, setHighlighted] = useState(0)
 
-  const filtered = query.trim()
-    ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
+  // Flatten groups into selectable items, keeping track of indices
+  const allItems: string[] = groups
+    ? groups.flatMap((g) => g.items)
     : options
+
+  const filtered = query.trim()
+    ? allItems.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
+    : allItems
 
   useEffect(() => {
     setHighlighted(0)
@@ -78,6 +86,55 @@ export default function Combobox({ options, value, onChange, placeholder = '', d
 
   const inputClass = "w-full bg-transparent border border-white/10 rounded-md px-2.5 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-purple-500/60 transition-colors"
 
+  const renderList = () => {
+    if (filtered.length === 0) {
+      return <li className="px-3 py-2 text-xs text-white/30 text-center">Aucun résultat</li>
+    }
+
+    // Si recherche active ou pas de groupes → affichage plat
+    if (query.trim() || !groups) {
+      return filtered.map((option, i) => (
+        <li
+          key={option}
+          onMouseDown={(e) => { e.preventDefault(); select(option) }}
+          onMouseEnter={() => setHighlighted(i)}
+          className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+            i === highlighted ? 'bg-purple-600/30 text-white' : 'text-white/80 hover:bg-white/5'
+          } ${option === value ? 'font-medium' : ''}`}
+        >
+          {option}
+        </li>
+      ))
+    }
+
+    // Affichage groupé
+    let globalIndex = 0
+    return groups.map((group) => (
+      <li key={group.label}>
+        <div className="px-3 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-widest text-purple-400/70 select-none">
+          {group.label}
+        </div>
+        <ul>
+          {group.items.map((option) => {
+            const i = globalIndex++
+            return (
+              <li
+                key={option}
+                onMouseDown={(e) => { e.preventDefault(); select(option) }}
+                onMouseEnter={() => setHighlighted(i)}
+                className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                  i === highlighted ? 'bg-purple-600/30 text-white' : 'text-white/80 hover:bg-white/5'
+                } ${option === value ? 'font-medium' : ''}`}
+              >
+                {option}
+              </li>
+            )
+          })}
+        </ul>
+      </li>
+    ))
+  }
+
   return (
     <div ref={containerRef} className="relative">
       <div className="relative">
@@ -111,22 +168,7 @@ export default function Combobox({ options, value, onChange, placeholder = '', d
           ref={listRef}
           className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[#1a1a26] border border-white/10 rounded-lg shadow-xl py-1"
         >
-          {filtered.length === 0 ? (
-            <li className="px-3 py-2 text-xs text-white/30 text-center">Aucun résultat</li>
-          ) : (
-            filtered.map((option, i) => (
-              <li
-                key={option}
-                onMouseDown={(e) => { e.preventDefault(); select(option) }}
-                onMouseEnter={() => setHighlighted(i)}
-                className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
-                  i === highlighted ? 'bg-purple-600/30 text-white' : 'text-white/80 hover:bg-white/5'
-                } ${option === value ? 'font-medium' : ''}`}
-              >
-                {option}
-              </li>
-            ))
-          )}
+          {renderList()}
         </ul>
       )}
     </div>
