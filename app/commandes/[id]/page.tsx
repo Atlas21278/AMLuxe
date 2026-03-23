@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
+import TrackingWidget from '@/components/ui/TrackingWidget'
 import FormulaireArticle from '@/components/articles/FormulaireArticle'
 import FormulaireVente from '@/components/articles/FormulaireVente'
 import FormulaireFrais from '@/components/commandes/FormulaireFrais'
@@ -132,15 +133,7 @@ export default function CommandeDetailPage() {
             {new Date(commande.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
           {commande.tracking && (
-            <a
-              href={`https://www.laposte.fr/outils/suivre-vos-envois?code=${commande.tracking}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-mono text-white/40 hover:text-purple-400 underline underline-offset-2 transition-colors"
-              title="Suivre le colis"
-            >
-              {commande.tracking}
-            </a>
+            <TrackingWidget numero={commande.tracking} />
           )}
         </div>
       </div>
