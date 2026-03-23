@@ -1,4 +1,4 @@
-// Détection automatique du transporteur + appel API 17TRACK
+// Détection automatique du transporteur depuis le numéro de tracking
 
 export type Transporteur = {
   code: string
@@ -72,102 +72,9 @@ export function detecterTransporteur(numero: string): Transporteur {
   // Mondial Relay: 8 chiffres
   if (/^\d{8}$/.test(n)) return TRANSPORTEURS.find(t => t.code === 'mondial_relay')!
 
-  // GLS: 11 chiffres commençant par certains préfixes
+  // GLS: 11 chiffres
   if (/^[0-9]{11}$/.test(n)) return TRANSPORTEURS.find(t => t.code === 'gls')!
 
-  // Par défaut: La Poste / Colissimo
+  // Par défaut: La Poste
   return TRANSPORTEURS.find(t => t.code === 'laposte')!
-}
-
-// --- API 17TRACK ---
-
-export type EtapeTracking = {
-  date: string
-  lieu: string
-  statut: string
-}
-
-export type ResultatTracking = {
-  transporteur: Transporteur
-  statut: string // ex: "En transit", "Livré", "En attente"
-  derniereMaj: string | null
-  etapes: EtapeTracking[]
-  erreur?: string
-}
-
-export async function getTrackingInfo(numero: string): Promise<ResultatTracking> {
-  const transporteur = detecterTransporteur(numero)
-  const apiKey = process.env.TRACKINGMORE_API_KEY
-
-  if (!apiKey) {
-    return {
-      transporteur,
-      statut: 'API non configurée',
-      derniereMaj: null,
-      etapes: [],
-      erreur: 'Clé API TrackingMore manquante (TRACKINGMORE_API_KEY)',
-    }
-  }
-
-  try {
-    const res = await fetch('https://api.trackingmore.com/v4/trackings/realtime', {
-      method: 'POST',
-      headers: {
-        'Tracking-Api-Key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ tracking_number: numero }),
-      next: { revalidate: 300 }, // cache 5 min
-    })
-
-    if (!res.ok) throw new Error(`TrackingMore API error: ${res.status}`)
-
-    const data = await res.json()
-    const item = data?.data?.[0]
-
-    if (!item) {
-      return {
-        transporteur,
-        statut: 'Numéro non trouvé',
-        derniereMaj: null,
-        etapes: [],
-      }
-    }
-
-    // Mapping statut TrackingMore → statut français
-    const statutMap: Record<string, string> = {
-      pending: 'En attente',
-      pickup: 'Pris en charge',
-      in_transit: 'En transit',
-      out_for_delivery: 'En transit',
-      delivered: 'Livré',
-      undelivered: 'Problème',
-      exception: 'Problème',
-      expired: 'Expiré',
-    }
-
-    const statutRaw: string = item.delivery_status ?? 'pending'
-    const etapesRaw: Array<{ time: string; location: string; description: string }> = item.origin_info?.trackinfo ?? []
-
-    const etapes: EtapeTracking[] = etapesRaw.slice(0, 8).map((e) => ({
-      date: e.time ?? '',
-      lieu: e.location ?? '',
-      statut: e.description ?? '',
-    }))
-
-    return {
-      transporteur,
-      statut: statutMap[statutRaw] ?? 'Inconnu',
-      derniereMaj: etapes[0]?.date ?? null,
-      etapes,
-    }
-  } catch {
-    return {
-      transporteur,
-      statut: 'Erreur',
-      derniereMaj: null,
-      etapes: [],
-      erreur: 'Impossible de récupérer le tracking',
-    }
-  }
 }

@@ -12,8 +12,10 @@ model Commande {
   fournisseur String
   date        DateTime  @default(now())
   statut      String    @default("En préparation")
-  tracking    String?
-  notes       String?
+  tracking          String?
+  trackingData      Json?
+  trackingUpdatedAt DateTime?
+  notes             String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   articles    Article[]
