@@ -268,7 +268,7 @@ Synchronisation automatique des annonces et des ventes depuis les plateformes. *
 
 ---
 
-### T-038 · Tracking colis automatique
+### ✅ T-038 · Tracking colis automatique
 Détecter le transporteur depuis le numéro de tracking et afficher le statut de livraison en temps réel.
 
 ---

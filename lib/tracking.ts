@@ -95,20 +95,9 @@ export type ResultatTracking = {
   erreur?: string
 }
 
-const STATUTS_17TRACK: Record<number, string> = {
-  0: 'En attente',
-  10: 'Pris en charge',
-  20: 'En transit',
-  30: 'Livré',
-  35: 'Livré (non confirmé)',
-  40: 'Retour expéditeur',
-  50: 'Problème',
-  60: 'Expiré',
-}
-
 export async function getTrackingInfo(numero: string): Promise<ResultatTracking> {
   const transporteur = detecterTransporteur(numero)
-  const apiKey = process.env.TRACK17_API_KEY
+  const apiKey = process.env.TRACKINGMORE_API_KEY
 
   if (!apiKey) {
     return {
@@ -116,25 +105,25 @@ export async function getTrackingInfo(numero: string): Promise<ResultatTracking>
       statut: 'API non configurée',
       derniereMaj: null,
       etapes: [],
-      erreur: 'Clé API 17TRACK manquante (TRACK17_API_KEY)',
+      erreur: 'Clé API TrackingMore manquante (TRACKINGMORE_API_KEY)',
     }
   }
 
   try {
-    const res = await fetch('https://api.17track.net/track/v2/gettrackinfo', {
+    const res = await fetch('https://api.trackingmore.com/v4/trackings/realtime', {
       method: 'POST',
       headers: {
-        '17token': apiKey,
+        'Tracking-Api-Key': apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify([{ number: numero }]),
+      body: JSON.stringify({ tracking_number: numero }),
       next: { revalidate: 300 }, // cache 5 min
     })
 
-    if (!res.ok) throw new Error(`17TRACK API error: ${res.status}`)
+    if (!res.ok) throw new Error(`TrackingMore API error: ${res.status}`)
 
     const data = await res.json()
-    const item = data?.data?.accepted?.[0]
+    const item = data?.data?.[0]
 
     if (!item) {
       return {
@@ -145,19 +134,30 @@ export async function getTrackingInfo(numero: string): Promise<ResultatTracking>
       }
     }
 
-    const trackInfo = item.track
-    const statutCode = trackInfo?.e ?? 0
-    const etapesRaw = trackInfo?.z1 ?? []
+    // Mapping statut TrackingMore → statut français
+    const statutMap: Record<string, string> = {
+      pending: 'En attente',
+      pickup: 'Pris en charge',
+      in_transit: 'En transit',
+      out_for_delivery: 'En transit',
+      delivered: 'Livré',
+      undelivered: 'Problème',
+      exception: 'Problème',
+      expired: 'Expiré',
+    }
 
-    const etapes: EtapeTracking[] = etapesRaw.slice(0, 8).map((e: { a: string; c: string; z: string }) => ({
-      date: e.a ?? '',
-      lieu: e.c ?? '',
-      statut: e.z ?? '',
+    const statutRaw: string = item.delivery_status ?? 'pending'
+    const etapesRaw: Array<{ time: string; location: string; description: string }> = item.origin_info?.trackinfo ?? []
+
+    const etapes: EtapeTracking[] = etapesRaw.slice(0, 8).map((e) => ({
+      date: e.time ?? '',
+      lieu: e.location ?? '',
+      statut: e.description ?? '',
     }))
 
     return {
       transporteur,
-      statut: STATUTS_17TRACK[statutCode] ?? 'Inconnu',
+      statut: statutMap[statutRaw] ?? 'Inconnu',
       derniereMaj: etapes[0]?.date ?? null,
       etapes,
     }

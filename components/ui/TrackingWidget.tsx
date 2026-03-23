@@ -119,7 +119,7 @@ export default function TrackingWidget({ numero }: { numero: string }) {
       {/* Message si API non configurée */}
       {!loading && data?.erreur && !data.etapes.length && (
         <div className="border-t border-white/5 px-4 py-2">
-          <p className="text-xs text-white/25">{data.erreur === 'Clé API 17TRACK manquante (TRACK17_API_KEY)' ? 'Ajoute TRACK17_API_KEY dans les variables Railway pour voir le statut en temps réel.' : data.erreur}</p>
+          <p className="text-xs text-white/25">{data.erreur === 'Clé API TrackingMore manquante (TRACKINGMORE_API_KEY)' ? 'Ajoute TRACKINGMORE_API_KEY dans les variables Railway pour voir le statut en temps réel.' : data.erreur}</p>
         </div>
       )}
     </div>
