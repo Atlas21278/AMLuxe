@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import type { Article } from '@prisma/client'
 import Combobox from '@/components/ui/Combobox'
-import { MARQUES, getModeles } from '@/data/marques'
+import { MARQUES, getModelesGroupes } from '@/data/marques'
 import { ETATS, STATUTS_ARTICLE } from '@/constants/statuts'
 
 interface Props {
@@ -63,7 +63,7 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
         <div>
           <label className="block text-xs font-medium text-white/60 mb-1.5">Modèle *</label>
           <Combobox
-            options={getModeles(form.marque)}
+            groups={getModelesGroupes(form.marque)}
             value={form.modele}
             onChange={(v) => setForm({ ...form, modele: v })}
             placeholder={form.marque ? 'Choisir un modèle...' : 'Sélectionnez une marque'}
