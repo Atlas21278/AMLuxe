@@ -108,6 +108,7 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
     const idToDelete = idOverride ?? deleteId
     if (idToDelete === null) return
     setDeleteId(null)
+    setDeleteSelection(false)
 
     let cancelled = false
     const toastId = toast('Commande supprimée', {
@@ -345,7 +346,7 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDelete(commande.id) }} className="p-1.5 rounded-md hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Supprimer">
+                          <button onClick={(e) => { e.stopPropagation(); setDeleteId(commande.id) }} className="p-1.5 rounded-md hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Supprimer">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
@@ -403,6 +404,21 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
       {editCommande && (
         <Modal title="Modifier la commande" onClose={() => setEditCommande(null)}>
           <FormulaireCommande commande={editCommande} onClose={() => { setEditCommande(null); onRefresh() }} />
+        </Modal>
+      )}
+
+      {/* Modal suppression individuelle */}
+      {deleteId !== null && (
+        <Modal title="Supprimer la commande" onClose={() => setDeleteId(null)}>
+          <p className="text-sm text-white/70 mb-4">
+            Tu vas supprimer cette commande et tous ses articles et frais. Tu auras 5 secondes pour annuler.
+          </p>
+          <div className="flex gap-3">
+            <button onClick={() => setDeleteId(null)} className="flex-1 px-4 py-2 rounded-lg border border-white/10 text-sm text-white/60 hover:bg-white/5 transition-colors">Annuler</button>
+            <button onClick={() => handleDelete()} disabled={isPending} className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-sm font-medium text-white transition-colors">
+              Supprimer
+            </button>
+          </div>
         </Modal>
       )}
 
