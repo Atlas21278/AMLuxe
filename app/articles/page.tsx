@@ -35,6 +35,49 @@ function ArticlesPageInner() {
   const [venteArticle, setVenteArticle] = useState<Article | null>(null)
   const [editArticle, setEditArticle] = useState<Article | null>(null)
   const [page, setPage] = useState(() => Number(searchParams.get('page') ?? 1))
+  const [selection, setSelection] = useState<Set<number>>(new Set())
+
+  const toggleOne = (id: number) => setSelection((prev) => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+  const toggleAll = () => {
+    const ids = data.map((a) => a.id)
+    const allSelected = ids.every((id) => selection.has(id))
+    setSelection(allSelected ? new Set() : new Set(ids))
+  }
+
+  const handleBulkStatut = async (statut: string) => {
+    const ids = [...selection]
+    setSelection(new Set())
+    const res = await fetch('/api/articles/bulk', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, statut }),
+    })
+    if (!res.ok) { toast.error('Erreur lors du changement de statut'); return }
+    toast.success(`${ids.length} article${ids.length > 1 ? 's' : ''} mis à jour`)
+    fetchArticles()
+  }
+
+  const handleBulkDelete = () => {
+    const ids = [...selection]
+    setSelection(new Set())
+    let cancelled = false
+    const toastId = toast(`${ids.length} article${ids.length > 1 ? 's' : ''} supprimé${ids.length > 1 ? 's' : ''}`, {
+      duration: 5000,
+      action: { label: 'Annuler', onClick: () => { cancelled = true } },
+    })
+    setTimeout(() => {
+      if (cancelled) { toast.dismiss(toastId); return }
+      fetch('/api/articles/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      }).then(() => fetchArticles())
+    }, 5000)
+  }
 
   // T-087 — synchroniser les filtres dans l'URL
   useEffect(() => {
@@ -180,6 +223,28 @@ function ArticlesPageInner() {
         </div>
       </div>
 
+      {/* Barre d'actions groupées */}
+      {selection.size > 0 && (
+        <div className="mb-4 flex items-center gap-3 bg-purple-500/10 border border-purple-500/20 rounded-xl px-4 py-3">
+          <span className="text-sm text-purple-400 font-medium shrink-0">{selection.size} sélectionné{selection.size > 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {['En stock', 'En vente', 'En retour', 'Endommagé'].map((s) => (
+              <button key={s} onClick={() => handleBulkStatut(s)}
+                className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-white/70 hover:text-white transition-colors">
+                → {s}
+              </button>
+            ))}
+            <button onClick={handleBulkDelete}
+              className="px-3 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-xs text-red-400 transition-colors ml-1">
+              Supprimer
+            </button>
+          </div>
+          <button onClick={() => setSelection(new Set())} className="ml-auto text-xs text-white/30 hover:text-white transition-colors">
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white/3 border border-white/5 rounded-xl overflow-hidden">
         {loading ? (
@@ -256,6 +321,15 @@ function ArticlesPageInner() {
           <table className="hidden sm:table w-full text-sm">
             <thead>
               <tr className="border-b border-white/5">
+                <th className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={data.length > 0 && data.every((a) => selection.has(a.id))}
+                    ref={(el: HTMLInputElement | null) => { if (el) el.indeterminate = data.some((a) => selection.has(a.id)) && !data.every((a) => selection.has(a.id)) }}
+                    onChange={toggleAll}
+                    className="w-4 h-4 rounded border-white/20 bg-white/5 accent-purple-500 cursor-pointer"
+                  />
+                </th>
                 <th className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider">Article</th>
                 <th className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider">Commande</th>
                 <th className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider">État</th>
@@ -271,7 +345,15 @@ function ArticlesPageInner() {
                   ? ((article.prixVenteReel - (article.fraisVente ?? 0) - article.prixAchat) / article.prixAchat * 100).toFixed(0)
                   : null
                 return (
-                  <tr key={article.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
+                  <tr key={article.id} className={`border-b border-white/5 transition-colors ${selection.has(article.id) ? 'bg-purple-500/8 hover:bg-purple-500/12' : 'hover:bg-white/2'}`}>
+                    <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selection.has(article.id)}
+                        onChange={() => toggleOne(article.id)}
+                        className="w-4 h-4 rounded border-white/20 bg-white/5 accent-purple-500 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-4 py-3.5">
                       <p className="font-medium text-white">{article.marque} {article.modele}</p>
                       {article.refFournisseur && <p className="text-xs text-white/35">{article.refFournisseur}</p>}

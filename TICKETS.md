@@ -623,7 +623,7 @@ Les filtres (statut, marque, recherche) se réinitialisent à chaque rechargemen
 
 ---
 
-### T-088 · Actions groupées sur les articles
+### ✅ T-088 · Actions groupées sur les articles
 **Fichier** : `app/articles/page.tsx`
 Avec 50+ articles, les opérations répétitives (passer plusieurs articles en "En vente", les supprimer...) se font une par une.
 **Fix** : Ajouter des checkboxes, un compteur de sélection et un menu d'actions groupées (changer statut, supprimer).
