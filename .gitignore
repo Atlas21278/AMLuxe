@@ -10,3 +10,4 @@ tsconfig.tsbuildinfo
 tests/.auth/
 playwright-report/
 test-results/
+public/voitures/*.xlsx
