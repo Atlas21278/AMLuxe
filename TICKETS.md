@@ -109,10 +109,10 @@ Les sessions JWT n'ont pas de `maxAge` défini explicitement.
 
 ## 🟡 FONCTIONNALITÉS — Améliorations
 
-### T-015 · Ajouter la pagination backend sur les articles et commandes
+### ✅ T-015 · Ajouter la pagination backend sur les articles et commandes
 **Fichiers** : `app/api/articles/route.ts`, `app/api/commandes/route.ts`
-Tout est chargé d'un coup — si la base grossit (500+ articles), les pages lagueront.
-**Fix** : Implémenter `skip` / `take` en API + pagination UI côté client.
+- **Articles** : pagination + filtres serveur complets (`page`, `limit`, `search`, `statut`, `marque`, `plateforme`). La page articles utilise maintenant l'API paginée.
+- **Commandes** : l'API supporte `page`/`limit`/`search`/`statut`/`dateFrom`/`dateTo`, mais `ListeCommandes` garde le client-side (tri multi-colonnes + sélection complexe — déféré).
 
 ---
 
@@ -648,7 +648,7 @@ Quand le JWT expire (8h), les fetch API retournent 401 mais les pages n'ont pas 
 
 ## 🟢 Nouvelles features basse priorité (2026-03-24)
 
-### T-091 · Debounce sur la recherche articles
+### ✅ T-091 · Debounce sur la recherche articles
 **Fichier** : `app/articles/page.tsx`
 La recherche texte filtre à chaque frappe sans debounce. Déclenche un re-render complet à chaque lettre.
 **Fix** : Ajouter `useDebounce` (300ms) sur le champ de recherche.

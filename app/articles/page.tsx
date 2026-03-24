@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
@@ -14,33 +14,57 @@ const FormulaireArticle = dynamic(() => import('@/components/articles/Formulaire
 type ArticleAvecCommande = Article & { commande: { fournisseur: string; id: number; frais: { id: number }[] } }
 
 const FILTRES_STATUT = ['tous', 'En stock', 'En vente', 'Vendu', 'En retour', 'Endommagé', 'Litige']
+const PAGE_SIZE = 20
 
 export default function ArticlesPage() {
-  const [articles, setArticles] = useState<ArticleAvecCommande[]>([])
+  const [data, setData] = useState<ArticleAvecCommande[]>([])
+  const [total, setTotal] = useState(0)
+  const [stats, setStats] = useState({ total: 0, enStock: 0, enVente: 0, vendu: 0 })
+  const [marquesDisponibles, setMarquesDisponibles] = useState<string[]>([])
+  const [plateformesDisponibles, setPlateformesDisponibles] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filtreStatut, setFiltreStatut] = useState('tous')
   const [filtreMarque, setFiltreMarque] = useState('toutes')
   const [filtrePlateforme, setFiltrePlateforme] = useState('toutes')
   const [venteArticle, setVenteArticle] = useState<Article | null>(null)
   const [editArticle, setEditArticle] = useState<Article | null>(null)
   const [page, setPage] = useState(1)
-  const PAGE_SIZE = 10
 
-  const fetchArticles = async () => {
+  // T-091 — debounce 300ms sur la recherche
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const fetchArticles = useCallback(async () => {
+    setLoading(true)
     try {
-      const res = await fetch('/api/articles')
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(PAGE_SIZE),
+        ...(debouncedSearch ? { search: debouncedSearch } : {}),
+        ...(filtreStatut !== 'tous' ? { statut: filtreStatut } : {}),
+        ...(filtreMarque !== 'toutes' ? { marque: filtreMarque } : {}),
+        ...(filtrePlateforme !== 'toutes' ? { plateforme: filtrePlateforme } : {}),
+      })
+      const res = await fetch(`/api/articles?${params}`)
       if (!res.ok) throw new Error()
-      const data = await res.json()
-      setArticles(data)
+      const json = await res.json()
+      setData(json.data)
+      setTotal(json.total)
+      setStats(json.stats)
+      if (json.marques?.length) setMarquesDisponibles(json.marques)
+      if (json.plateformes?.length) setPlateformesDisponibles(json.plateformes)
     } catch {
       toast.error('Impossible de charger les articles')
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, debouncedSearch, filtreStatut, filtreMarque, filtrePlateforme])
 
-  useEffect(() => { fetchArticles() }, [])
+  useEffect(() => { fetchArticles() }, [fetchArticles])
 
   // T-075 — restaurer la position de scroll après navigation
   useEffect(() => {
@@ -54,19 +78,8 @@ export default function ArticlesPage() {
     }
   }, [])
 
-  const marquesDisponibles = [...new Set(articles.map((a) => a.marque))].sort()
-  const plateformesDisponibles = [...new Set(articles.filter((a) => a.plateforme).map((a) => a.plateforme!))].sort()
-
-  const filtered = articles.filter((a) => {
-    const matchSearch = `${a.marque} ${a.modele}`.toLowerCase().includes(search.toLowerCase())
-    const matchStatut = filtreStatut === 'tous' || a.statut === filtreStatut
-    const matchMarque = filtreMarque === 'toutes' || a.marque === filtreMarque
-    const matchPlateforme = filtrePlateforme === 'toutes' || a.plateforme === filtrePlateforme
-    return matchSearch && matchStatut && matchMarque && matchPlateforme
-  })
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const paginated = data
 
   const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1)
     .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
@@ -75,13 +88,6 @@ export default function ArticlesPage() {
       acc.push(p)
       return acc
     }, [])
-
-  const stats = {
-    total: articles.length,
-    enStock: articles.filter((a) => a.statut === 'En stock').length,
-    enVente: articles.filter((a) => a.statut === 'En vente').length,
-    vendu: articles.filter((a) => a.statut === 'Vendu').length,
-  }
 
   return (
     <div className="page-enter p-4 sm:p-6 lg:p-8">
@@ -173,7 +179,7 @@ export default function ArticlesPage() {
               </div>
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : total === 0 ? (
           <div className="text-center py-16 text-white/30 text-sm">Aucun article trouvé</div>
         ) : (
           <>
@@ -317,7 +323,7 @@ export default function ArticlesPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4 gap-2">
-          <p className="text-xs text-white/30 shrink-0">{filtered.length} article{filtered.length > 1 ? 's' : ''} — p.{page}/{totalPages}</p>
+          <p className="text-xs text-white/30 shrink-0">{total} article{total > 1 ? 's' : ''} — p.{page}/{totalPages}</p>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage(1)} disabled={page === 1} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md text-sm text-white/40 hover:text-white hover:bg-white/5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">«</button>
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md text-sm text-white/40 hover:text-white hover:bg-white/5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">‹</button>
