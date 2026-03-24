@@ -69,7 +69,7 @@ export default function Modal({ title, onClose, children, footer, size = 'md' }:
           {children}
           {/* T-073 — dégradé indicateur de scroll */}
           {showScrollHint && (
-            <div className="pointer-events-none sticky bottom-0 left-0 right-0 h-12 -mb-5 bg-gradient-to-t from-[#1a1a26] to-transparent flex items-end justify-center pb-2 pointer-events-none">
+            <div className="pointer-events-none sticky bottom-0 left-0 right-0 h-12 -mb-5 bg-gradient-to-t from-[#1a1a26] to-transparent flex items-end justify-center pb-2">
               <span className="text-white/30 text-xs">↓ défiler</span>
             </div>
           )}

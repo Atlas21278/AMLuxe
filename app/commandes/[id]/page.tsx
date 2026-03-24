@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import Badge from '@/components/ui/Badge'
@@ -17,9 +17,6 @@ type CommandeDetail = Commande & { articles: Article[]; frais: Frais[] }
 
 export default function CommandeDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const router = useRouter()
-  const routerRef = useRef(router)
-  routerRef.current = router
   const [commande, setCommande] = useState<CommandeDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)

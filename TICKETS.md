@@ -707,6 +707,13 @@ Le dropdown du Combobox utilise `position: absolute` à l'intérieur d'un parent
 
 ---
 
+### 🟢 T-100 · `app/error.tsx` — paramètre `error` reçu mais non affiché
+**Fichier** : `app/error.tsx`
+Next.js passe les props `{ error, reset }` à l'error boundary. Le composant affiche un message générique et n'exploite pas `error.message` ni `error.digest` pour aider au débogage.
+**Fix** : Afficher `error.digest` (court, pas de fuite de stack) en mode dev, ou logger discrètement.
+
+---
+
 ### ✅ T-097 · Miniature photo dans la liste des articles
 **Fichier** : `app/articles/page.tsx`
 Afficher la première photo de l'article comme miniature dans la liste (desktop : colonne dédiée, mobile : vignette à gauche de la carte). Si aucune photo, afficher une icône neutre (sac/image).
