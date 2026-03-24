@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import type { Article } from '@prisma/client'
 import Combobox from '@/components/ui/Combobox'
 import { MARQUES, getModelesGroupes } from '@/data/marques'
-import { ETATS, STATUTS_ARTICLE } from '@/constants/statuts'
+import { ETATS, STATUTS_ARTICLE, DEVISES } from '@/constants/statuts'
 
 interface HistoriqueEntry {
   id: number
@@ -24,6 +24,7 @@ const LABELS: Record<string, string> = {
   plateforme: 'Plateforme',
   etat: 'État',
   notes: 'Notes',
+  devise: 'Devise',
 }
 
 interface Props {
@@ -53,6 +54,7 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
     etat: article?.etat ?? 'Très bon état',
     refFournisseur: article?.refFournisseur ?? '',
     statut: article?.statut ?? 'En stock',
+    devise: (article as { devise?: string })?.devise ?? 'EUR',
     notes: article?.notes ?? '',
   })
 
@@ -125,6 +127,13 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
             {STATUTS_ARTICLE.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-white/60 mb-1.5">Devise</label>
+        <select value={form.devise} onChange={(e) => setForm({ ...form, devise: e.target.value })} className={inputClass}>
+          {DEVISES.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
       </div>
 
       <div>

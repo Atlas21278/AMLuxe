@@ -6,8 +6,8 @@ import { logAudit } from '@/lib/audit'
 
 const CHAMPS_SURVEILLES: (keyof {
   statut: string; prixAchat: number; prixVente: number | null; prixVenteReel: number | null;
-  fraisVente: number | null; plateforme: string | null; etat: string; notes: string | null;
-})[] = ['statut', 'prixAchat', 'prixVente', 'prixVenteReel', 'fraisVente', 'plateforme', 'etat', 'notes']
+  fraisVente: number | null; plateforme: string | null; etat: string; notes: string | null; devise: string;
+})[] = ['statut', 'prixAchat', 'prixVente', 'prixVenteReel', 'fraisVente', 'plateforme', 'etat', 'notes', 'devise']
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -38,6 +38,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     etat: body.etat,
     refFournisseur: body.refFournisseur || null,
     statut: body.statut,
+    devise: body.devise || 'EUR',
     prixVente: body.prixVente ? Math.max(0, Number(body.prixVente)) : null,
     plateforme: body.plateforme || null,
     prixVenteReel: body.prixVenteReel ? Math.max(0, Number(body.prixVenteReel)) : null,

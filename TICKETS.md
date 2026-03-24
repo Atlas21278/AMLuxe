@@ -273,7 +273,7 @@ Détecter le transporteur depuis le numéro de tracking et afficher le statut de
 
 ---
 
-### T-039 · Multi-devise
+### ✅ T-039 · Multi-devise
 Support EUR, USD, GBP avec conversion automatique.
 
 ---

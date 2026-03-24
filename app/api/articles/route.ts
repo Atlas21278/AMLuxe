@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
       etat: body.etat,
       refFournisseur: body.refFournisseur || null,
       statut: body.statut || 'En stock',
+      devise: body.devise || 'EUR',
       commandeId: Number(body.commandeId),
     },
   })
