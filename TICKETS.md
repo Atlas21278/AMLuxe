@@ -144,7 +144,7 @@ L'export Excel existe mais pas le PDF.
 
 ---
 
-### T-020 · Page de réinitialisation de mot de passe
+### ✅ T-020 · Page de réinitialisation de mot de passe
 **Fichier** : `app/login/page.tsx`
 Aucun flow "mot de passe oublié". Les admins doivent le changer manuellement via Prisma Studio.
 **Fix** : Créer `app/forgot-password/page.tsx` + route API avec token temporaire par email.
@@ -165,7 +165,7 @@ Tous les calculs (par marque, par plateforme, bénéfice…) sont recalculés à
 
 ---
 
-### T-023 · Ajouter un composant `<Table>` générique réutilisable
+### ✅ T-023 · Ajouter un composant `<Table>` générique réutilisable
 **Fichiers** : `app/commandes/page.tsx`, `app/articles/page.tsx`
 Chaque tableau réimplémente sa logique de tri, hover, sélection.
 **Fix** : Créer `components/ui/Table.tsx` avec colonnes configurables.
@@ -303,8 +303,8 @@ Table `Audit` pour tracer toutes les créations/modifications/suppressions avec 
 
 ---
 
-### T-045 · Support mobile amélioré
-Certains tableaux ne sont pas lisibles sur mobile. Revoir le layout des pages commandes et articles pour les petits écrans.
+### ✅ T-045 · Support mobile amélioré
+Adressé via les tickets T-062 à T-079 (responsive selects, date pickers, pagination, modals, tableaux, skeleton, scroll, etc.).
 
 ---
 

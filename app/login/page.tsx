@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
   id: i,
@@ -169,6 +170,12 @@ export default function LoginPage() {
               {error}
             </div>
           )}
+
+          <div className="flex justify-end -mt-1">
+            <Link href="/mot-de-passe-oublie" className="text-xs text-white/30 hover:text-white/60 transition-colors">
+              Mot de passe oublié ?
+            </Link>
+          </div>
 
           <button type="submit" disabled={loading} className="login-btn">
             {loading ? (
