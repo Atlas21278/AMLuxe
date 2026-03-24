@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
 import Combobox from '@/components/ui/Combobox'
 import { MARQUES, getModeles } from '@/data/marques'
@@ -58,6 +58,8 @@ export default function FormulaireCommande({ commande, fournisseurs = [], onClos
 
   const [articles, setArticles] = useState<ArticleRow[]>([articleVide()])
   const [frais, setFrais] = useState<FraisRow[]>([])
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
+  const forceCreateRef = useRef(false)
 
   const updateArticle = (index: number, field: keyof ArticleRow, value: string) => {
     setArticles((prev) => prev.map((a, i) => i === index ? { ...a, [field]: value } : a))
@@ -96,6 +98,23 @@ export default function FormulaireCommande({ commande, fournisseurs = [], onClos
         toast.success('Commande modifiée')
         onClose()
       } else {
+        // Vérification doublon avant création
+        if (!forceCreateRef.current && form.fournisseur.trim()) {
+          const checkRes = await fetch(`/api/commandes?search=${encodeURIComponent(form.fournisseur)}&page=1&limit=10`)
+          if (checkRes.ok) {
+            const { data } = await checkRes.json()
+            const selectedDate = new Date(form.date)
+            const nearby = (data ?? []).filter((c: { date: string; fournisseur: string }) => {
+              const diff = Math.abs(new Date(c.date).getTime() - selectedDate.getTime())
+              return diff <= 7 * 24 * 60 * 60 * 1000 && c.fournisseur.toLowerCase() === form.fournisseur.toLowerCase()
+            })
+            if (nearby.length > 0) {
+              setDuplicateWarning(`Une commande "${nearby[0].fournisseur}" existe déjà le ${new Date(nearby[0].date).toLocaleDateString('fr-FR')}`)
+              return
+            }
+          }
+        }
+
         const articlesValides = articles.filter((a) => a.marque.trim() && a.modele.trim())
         const fraisValides = frais.filter((f) => f.montant && Number(f.montant) > 0)
         const res = await fetch('/api/commandes', {
@@ -104,6 +123,7 @@ export default function FormulaireCommande({ commande, fournisseurs = [], onClos
           body: JSON.stringify({ ...form, articles: articlesValides, frais: fraisValides }),
         })
         if (!res.ok) { toast.error('Erreur lors de la création'); return }
+        forceCreateRef.current = false
         toast.success('Commande créée')
         onClose()
       }
@@ -334,6 +354,25 @@ export default function FormulaireCommande({ commande, fournisseurs = [], onClos
           )}
         </div>
         </>
+      )}
+
+      {duplicateWarning && (
+        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2.5">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <div className="flex-1">
+            <p className="text-xs text-amber-300 font-medium">Possible doublon</p>
+            <p className="text-xs text-amber-400/80 mt-0.5">{duplicateWarning}</p>
+          </div>
+          <button
+            type="submit"
+            onClick={() => { forceCreateRef.current = true; setDuplicateWarning(null) }}
+            className="text-xs text-amber-400 hover:text-amber-300 underline underline-offset-2 shrink-0 mt-0.5"
+          >
+            Créer quand même
+          </button>
+        </div>
       )}
 
       <div className="flex gap-3 pt-4">

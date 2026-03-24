@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
+import ShortcutsHelp from '@/components/ui/ShortcutsHelp'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { toast } from 'sonner'
 import type { Article } from '@prisma/client'
 
@@ -36,6 +38,8 @@ function ArticlesPageInner() {
   const [editArticle, setEditArticle] = useState<Article | null>(null)
   const [page, setPage] = useState(() => Number(searchParams.get('page') ?? 1))
   const [selection, setSelection] = useState<Set<number>>(new Set())
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const toggleOne = (id: number) => setSelection((prev) => {
     const next = new Set(prev)
@@ -136,6 +140,16 @@ function ArticlesPageInner() {
     }
   }, [])
 
+  const shortcutList = useMemo(() => [
+    { key: '/', label: 'Mettre le focus sur la recherche' },
+    { key: '?', label: 'Afficher les raccourcis' },
+  ], [])
+
+  useKeyboardShortcuts(useMemo(() => ({
+    '/': () => searchInputRef.current?.focus(),
+    '?': () => setShowShortcuts(true),
+  }), []), !venteArticle && !editArticle && !showShortcuts)
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const paginated = data
 
@@ -176,7 +190,7 @@ function ArticlesPageInner() {
             <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <input type="text" placeholder="Rechercher un article..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/60" />
+            <input ref={searchInputRef} type="text" placeholder="Rechercher un article..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/60" />
           </div>
           <select
             value={filtreMarque}
@@ -447,6 +461,10 @@ function ArticlesPageInner() {
         <Modal title="Vente / Mise en vente" onClose={() => setVenteArticle(null)}>
           <FormulaireVente article={venteArticle} onClose={() => { setVenteArticle(null); fetchArticles() }} />
         </Modal>
+      )}
+
+      {showShortcuts && (
+        <ShortcutsHelp shortcuts={shortcutList} onClose={() => setShowShortcuts(false)} />
       )}
 
     </div>

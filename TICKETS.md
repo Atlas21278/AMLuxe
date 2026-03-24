@@ -137,7 +137,7 @@ Statuts actuels : `En stock`, `En vente`, `Vendu`. Manquent : `En retour`, `Endo
 
 ---
 
-### T-019 · Export PDF des commandes / factures
+### ✅ T-019 · Export PDF des commandes / factures
 **Fichier** : `app/export/page.tsx`
 L'export Excel existe mais pas le PDF.
 **Fix** : Intégrer `@react-pdf/renderer` ou `jsPDF` pour générer une fiche par commande.
@@ -186,7 +186,7 @@ La suppression est irréversible et immédiate.
 
 ---
 
-### T-026 · Historique des modifications d'un article
+### ✅ T-026 · Historique des modifications d'un article
 **Fichier** : `prisma/schema.prisma`
 Quand on modifie un prix de vente ou un statut, l'ancienne valeur est perdue.
 **Fix** : Créer une table `ArticleHistorique` + middleware Prisma pour logger les changements.
@@ -288,7 +288,7 @@ Option pour rester connecté 30 jours au lieu de la durée de session standard.
 
 ---
 
-### T-042 · Fichier `.env.example`
+### ✅ T-042 · Fichier `.env.example`
 Créer un `.env.example` avec toutes les variables requises documentées pour faciliter l'onboarding.
 
 ---
@@ -662,14 +662,14 @@ Impossible d'attacher des photos à un article pour référence visuelle.
 
 ---
 
-### T-093 · Détection de doublons de commandes
+### ✅ T-093 · Détection de doublons de commandes
 **Fichier** : `app/api/commandes/route.ts`
 Possible de créer deux commandes identiques (même fournisseur, même date) sans avertissement.
 **Fix** : Vérifier à la création si une commande proche existe (même fournisseur ± 7 jours) et afficher un warning côté UI avant validation.
 
 ---
 
-### T-094 · Raccourcis clavier
+### ✅ T-094 · Raccourcis clavier
 **Fichiers** : toutes les pages principales
 Aucun raccourci clavier disponible.
 **Suggestion** : `N` = nouvelle commande (sur `/commandes`), `E` = exporter, `?` = aide raccourcis.

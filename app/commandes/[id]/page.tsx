@@ -57,6 +57,89 @@ export default function CommandeDetailPage() {
     fetchCommande()
   }
 
+  const exportPDF = async () => {
+    if (!commande) return
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
+
+    const doc = new jsPDF()
+    const totalAchatLocal = commande.articles.reduce((acc, a) => acc + a.prixAchat, 0)
+    const totalFraisLocal = commande.frais.reduce((acc, f) => acc + f.montant, 0)
+    const totalVentesLocal = commande.articles
+      .filter((a) => a.prixVenteReel)
+      .reduce((acc, a) => acc + (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0), 0)
+    const beneficeLocal = totalVentesLocal - totalAchatLocal - totalFraisLocal
+
+    // En-tête
+    doc.setFontSize(18)
+    doc.setTextColor(40)
+    doc.text(`Commande — ${commande.fournisseur}`, 14, 20)
+    doc.setFontSize(10)
+    doc.setTextColor(120)
+    doc.text(`Date : ${new Date(commande.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`, 14, 28)
+    doc.text(`Statut : ${commande.statut}`, 14, 34)
+    if (commande.tracking) doc.text(`Tracking : ${commande.tracking}`, 14, 40)
+
+    // KPIs
+    const startY = commande.tracking ? 48 : 42
+    doc.setFontSize(10)
+    doc.setTextColor(40)
+    const kpis = [
+      ['Total achat', `${totalAchatLocal.toFixed(2)} €`],
+      ['Total frais', `${totalFraisLocal.toFixed(2)} €`],
+      ['Revenus ventes', `${totalVentesLocal.toFixed(2)} €`],
+      ['Bénéfice', `${beneficeLocal.toFixed(2)} €`],
+    ]
+    autoTable(doc, {
+      startY,
+      head: [],
+      body: kpis,
+      columnStyles: { 0: { cellWidth: 50 }, 1: { halign: 'right' } },
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 2 },
+    })
+
+    // Table articles
+    const afterKpis = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+    doc.setFontSize(12)
+    doc.setTextColor(40)
+    doc.text('Articles', 14, afterKpis)
+    autoTable(doc, {
+      startY: afterKpis + 4,
+      head: [['Marque', 'Modèle', 'État', 'N° série', 'Statut', 'Prix achat', 'Prix vendu', 'Bénéfice']],
+      body: commande.articles.map((a) => {
+        const ben = a.prixVenteReel ? (a.prixVenteReel - (a.fraisVente ?? 0) - a.prixAchat).toFixed(2) + ' €' : '—'
+        return [
+          a.marque, a.modele, a.etat, a.refFournisseur ?? '—', a.statut,
+          `${a.prixAchat.toFixed(2)} €`,
+          a.prixVenteReel ? `${a.prixVenteReel.toFixed(2)} €` : '—',
+          ben,
+        ]
+      }),
+      theme: 'striped',
+      headStyles: { fillColor: [80, 40, 120] },
+      styles: { fontSize: 8 },
+    })
+
+    // Table frais
+    if (commande.frais.length > 0) {
+      const afterArticles = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+      doc.setFontSize(12)
+      doc.setTextColor(40)
+      doc.text('Frais & taxes', 14, afterArticles)
+      autoTable(doc, {
+        startY: afterArticles + 4,
+        head: [['Type', 'Montant', 'Description']],
+        body: commande.frais.map((f) => [f.type, `${f.montant.toFixed(2)} €`, f.description ?? '']),
+        theme: 'striped',
+        headStyles: { fillColor: [80, 40, 120] },
+        styles: { fontSize: 9 },
+      })
+    }
+
+    doc.save(`commande_${commande.fournisseur.replace(/\s+/g, '_')}_${new Date(commande.date).toISOString().split('T')[0]}.pdf`)
+  }
+
   const handleDeleteFrais = async (fraisId: number) => {
     const res = await fetch(`/api/frais/${fraisId}`, { method: 'DELETE' })
     if (!res.ok) { toast.error('Erreur lors de la suppression'); return }
@@ -141,6 +224,16 @@ export default function CommandeDetailPage() {
             <TrackingWidget numero={commande.tracking} />
           )}
         </div>
+        <button
+          onClick={exportPDF}
+          title="Exporter en PDF"
+          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-white/60 hover:text-white transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span className="hidden sm:inline">PDF</span>
+        </button>
       </div>
 
       {/* KPI cards */}

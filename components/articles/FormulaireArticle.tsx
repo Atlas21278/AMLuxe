@@ -1,11 +1,30 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import { toast } from 'sonner'
 import type { Article } from '@prisma/client'
 import Combobox from '@/components/ui/Combobox'
 import { MARQUES, getModelesGroupes } from '@/data/marques'
 import { ETATS, STATUTS_ARTICLE } from '@/constants/statuts'
+
+interface HistoriqueEntry {
+  id: number
+  champ: string
+  ancienne: string | null
+  nouvelle: string | null
+  createdAt: string
+}
+
+const LABELS: Record<string, string> = {
+  statut: 'Statut',
+  prixAchat: "Prix d'achat",
+  prixVente: 'Prix de vente',
+  prixVenteReel: 'Prix vendu',
+  fraisVente: 'Frais de vente',
+  plateforme: 'Plateforme',
+  etat: 'État',
+  notes: 'Notes',
+}
 
 interface Props {
   commandeId: number
@@ -16,6 +35,16 @@ interface Props {
 export default function FormulaireArticle({ commandeId, article, onClose }: Props) {
   const [isPending, startTransition] = useTransition()
   const isEdit = !!article
+  const [historique, setHistorique] = useState<HistoriqueEntry[]>([])
+  const [showHistorique, setShowHistorique] = useState(false)
+
+  useEffect(() => {
+    if (!isEdit) return
+    fetch(`/api/articles/${article.id}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then(setHistorique)
+      .catch(() => {})
+  }, [isEdit, article?.id])
 
   const [form, setForm] = useState({
     marque: article?.marque ?? '',
@@ -102,6 +131,38 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
         <label className="block text-xs font-medium text-white/60 mb-1.5">Notes</label>
         <textarea rows={2} placeholder="Notes..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className={`${inputClass} resize-none`} />
       </div>
+
+      {isEdit && historique.length > 0 && (
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={() => setShowHistorique((v) => !v)}
+            className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-3.5 h-3.5 transition-transform ${showHistorique ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            Historique ({historique.length} modification{historique.length > 1 ? 's' : ''})
+          </button>
+          {showHistorique && (
+            <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
+              {historique.map((h) => (
+                <div key={h.id} className="flex items-start gap-2 text-xs py-1.5 border-b border-white/5">
+                  <span className="text-white/30 shrink-0 tabular-nums">
+                    {new Date(h.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                    {' '}
+                    {new Date(h.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <span className="text-white/50 shrink-0">{LABELS[h.champ] ?? h.champ}</span>
+                  <span className="text-red-400/70 line-through truncate max-w-[80px]">{h.ancienne || '—'}</span>
+                  <span className="text-white/20">→</span>
+                  <span className="text-green-400/80 truncate max-w-[80px]">{h.nouvelle || '—'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-lg border border-white/10 text-sm text-white/60 hover:bg-white/5 transition-colors">Annuler</button>
