@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import { toast } from 'sonner'
 import type { Article } from '@prisma/client'
 import { PLATEFORMES } from '@/constants/statuts'
@@ -63,6 +63,14 @@ export default function FormulaireVente({ article, onClose }: Props) {
       onClose()
     })
   }
+
+  const margePreview = useMemo(() => {
+    if (mode !== 'vendu') return null
+    const venteReel = parseFloat(form.prixVenteReel)
+    const frais = parseFloat(form.fraisVente) || 0
+    if (isNaN(venteReel) || venteReel === 0) return null
+    return venteReel - frais - article.prixAchat
+  }, [mode, form.prixVenteReel, form.fraisVente, article.prixAchat])
 
   const inputClass = "w-full bg-[#0f0f18] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/30"
 
@@ -141,6 +149,16 @@ export default function FormulaireVente({ article, onClose }: Props) {
               <label className="block text-xs font-medium text-white/60 mb-1.5">Date de vente</label>
               <input type="date" value={form.dateVente} onChange={(e) => setForm({ ...form, dateVente: e.target.value })} className={inputClass} />
             </div>
+            {margePreview !== null && (
+              <div className={`flex items-center justify-between rounded-lg px-3 py-2.5 ${margePreview < 0 ? 'bg-red-500/10 border border-red-500/20' : 'bg-green-500/10 border border-green-500/20'}`}>
+                <span className={`text-xs font-medium ${margePreview < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  {margePreview < 0 ? '⚠ Vous vendez à perte' : '✓ Marge positive'}
+                </span>
+                <span className={`text-sm font-bold ${margePreview < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  {margePreview >= 0 ? '+' : ''}{margePreview.toFixed(2)} €
+                </span>
+              </div>
+            )}
           </>
         )}
 

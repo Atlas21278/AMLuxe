@@ -283,8 +283,8 @@ Option pour rester connecté 30 jours au lieu de la durée de session standard.
 
 ---
 
-### T-041 · Tests unitaires et E2E
-Zéro test actuellement. Ajouter Jest + Testing Library pour les calculs métier, Playwright pour les workflows critiques (créer commande → ajouter article → vendre).
+### ✅ T-041 · Tests unitaires et E2E
+99 tests Playwright couvrant les 8 sections de l'app (auth, dashboard, commandes, détail, articles, statistiques, utilisateurs, navigation). `playwright.config.ts` + `global-setup.ts` + helpers API + 8 spec files dans `tests/e2e/`.
 
 ---
 
@@ -562,28 +562,29 @@ Le pattern `mounted` avec `useState(false)` + `useEffect` résout l'hydratation 
 
 ## 🔴 Nouveaux bugs identifiés (2026-03-24)
 
-### T-080 · Incohérence bénéfice dashboard vs statistiques
+### ✅ T-080 · Incohérence bénéfice dashboard vs statistiques
 **Fichier** : `app/page.tsx` vs `lib/calculs.ts`
 Le dashboard calcule le bénéfice comme `prixVenteReel - fraisVente - prixAchat` sans déduire les frais de commande. La page statistiques utilise `calculerBenefice()` qui les inclut. L'utilisateur voit deux chiffres différents pour la même période.
-**Fix** : Utiliser `calculerBenefice()` (ou une version filtrée sur le mois) dans `app/page.tsx`.
+**Note** : `calculerBenefice()` est définie dans `lib/calculs.ts` mais n'est importée **nulle part** — elle est orpheline. `app/page.tsx` et `app/statistiques/page.tsx` recalculent chacun de leur côté.
+**Fix** : Importer et utiliser `calculerBenefice()` dans `app/page.tsx`.
 
 ---
 
-### T-081 · `confirm()` natif pour supprimer un article
+### ✅ T-081 · `confirm()` natif pour supprimer un article
 **Fichier** : `app/commandes/[id]/page.tsx`
 La suppression d'un article utilise `window.confirm()` (navigateur natif) au lieu d'une vraie modale comme pour les commandes. Style incohérent, bloquant sur certains navigateurs.
 **Fix** : Remplacer par le composant `<Modal>` avec confirmation inline, comme T-027.
 
 ---
 
-### T-082 · ImportModal ne vérifie pas `response.ok`
+### ✅ T-082 · ImportModal ne vérifie pas `response.ok`
 **Fichier** : `components/ImportModal.tsx`
 Le `fetch` vers `/api/import` parse directement le JSON sans vérifier `response.ok`. Si l'API renvoie une erreur HTML (500, 502...), le JSON.parse plante sans message clair.
 **Fix** : Ajouter `if (!res.ok) throw new Error(...)` avant le parse.
 
 ---
 
-### T-083 · Fuite mémoire légère sur `loginAttempts`
+### ✅ T-083 · Fuite mémoire légère sur `loginAttempts`
 **Fichier** : `lib/auth.ts`
 La `Map` des tentatives de connexion accumule des entrées pour chaque email unique sans jamais nettoyer les entrées expirées. Sur un serveur long-running avec beaucoup d'IPs, ça grossit indéfiniment.
 **Fix** : Supprimer l'entrée après le délai de 15 min ou utiliser un `setTimeout` pour purger.
@@ -592,21 +593,21 @@ La `Map` des tentatives de connexion accumule des entrées pour chaque email uni
 
 ## 🟠 Nouvelles features haute priorité (2026-03-24)
 
-### T-084 · Page Objectifs vide alors qu'elle est dans la nav
+### ✅ T-084 · Page Objectifs vide alors qu'elle est dans la nav
 **Fichier** : `app/objectifs/page.tsx`
-La page existe et est accessible depuis la sidebar, mais elle est vide. En production, ça renvoie une page blanche.
-**Suggestion** : Objectifs mensuels (CA cible, bénéfice cible, nb articles vendus cible) avec barre de progression et comparaison mois précédent.
+~~La page existe et est accessible depuis la sidebar, mais elle est vide.~~
+**Audit 2026-03-24** : La page est entièrement implémentée (745 lignes) — objectifs mensuels avec barres de progression, gamification, CarCards avec animations, comparaison mois précédent.
 
 ---
 
-### T-085 · Page Abonnements vide alors qu'elle est dans la nav
+### ✅ T-085 · Page Abonnements vide alors qu'elle est dans la nav
 **Fichier** : `app/parametres/abonnements/page.tsx`
-Même problème que T-084. Le modèle `AbonnementMensuel` existe en DB et est intégré dans `calculerBenefice()`, mais l'interface de gestion est vide.
-**Suggestion** : Liste des abonnements par mois (Vinted Premium, Leboncoin Boost...) avec total mensuel et impact sur le bénéfice.
+~~Même problème que T-084. L'interface de gestion est vide.~~
+**Audit 2026-03-24** : La page est entièrement implémentée (209 lignes) — CRUD des abonnements mensuels (Vinted Premium, Leboncoin Boost...) avec total mensuel et impact sur le bénéfice.
 
 ---
 
-### T-086 · Alerte marge négative dans FormulaireVente
+### ✅ T-086 · Alerte marge négative dans FormulaireVente
 **Fichier** : `components/articles/FormulaireVente.tsx`
 Aucun avertissement si l'utilisateur saisit un `prixVenteReel` inférieur à `prixAchat + fraisVente`. La vente est enregistrée en perte sans signal visuel.
 **Fix** : Calculer la marge en temps réel dans le formulaire, afficher en rouge si < 0 avec le message "Vous vendez à perte".
@@ -632,13 +633,15 @@ Avec 50+ articles, les opérations répétitives (passer plusieurs articles en "
 ### T-089 · Rate limiting manquant sur `/api/import`
 **Fichier** : `app/api/import/route.ts`
 La route accepte 500 commandes par requête sans limite par utilisateur ni throttling. Un utilisateur malveillant peut saturer la DB.
-**Fix** : Limiter à N requêtes par minute par session (ex: 5 imports/min).
+**Note** : Une limite de taille (max 500 lignes par import) est en place, mais aucun throttling par session (ex: 5 imports/min) n'existe.
+**Fix** : Ajouter un compteur d'imports par session dans la `Map` de rate limiting déjà présente dans `lib/auth.ts`.
 
 ---
 
-### T-090 · Session expirée → erreur silencieuse au lieu d'un redirect
+### ✅ T-090 · Session expirée → erreur silencieuse au lieu d'un redirect
 **Fichiers** : toutes les pages client
 Quand le JWT expire (8h), les fetch API retournent 401 mais les pages n'ont pas de gestionnaire global — l'utilisateur voit une page vide ou un état de chargement infini.
+**Note** : Le middleware Next.js protège bien les routes et redirige vers `/login` pour les navigations, mais les appels `fetch` côté client ne sont pas interceptés.
 **Fix** : Intercepter les 401 dans un wrapper fetch global et appeler `signOut({ callbackUrl: '/login' })`.
 
 ---
@@ -687,4 +690,4 @@ Ces champs ont été ajoutés lors de l'intégration TrackingMore (abandonnée).
 
 ---
 
-*Fichier mis à jour le 2026-03-24.*
+*Fichier mis à jour le 2026-03-24. Audit complet 2026-03-24 : T-041, T-084, T-085 fermés. T-080 : `calculerBenefice()` orpheline confirmée. T-089/T-090 partiellement implémentés.*

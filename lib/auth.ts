@@ -10,6 +10,10 @@ function checkRateLimit(email: string): boolean {
   const now = Date.now()
   const entry = loginAttempts.get(email)
   if (!entry || now > entry.resetAt) {
+    // Purger toutes les entrées expirées pour éviter la fuite mémoire
+    for (const [key, val] of loginAttempts) {
+      if (now > val.resetAt) loginAttempts.delete(key)
+    }
     loginAttempts.set(email, { count: 1, resetAt: now + 15 * 60 * 1000 })
     return true
   }
