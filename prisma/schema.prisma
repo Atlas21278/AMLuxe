@@ -37,6 +37,8 @@ model Article {
   devise         String    @default("EUR")
   prixVente      Float?
   plateforme     String?
+  lienAnnonce    String?
+  photos         String[]
   prixVenteReel  Float?
   fraisVente     Float?
   dateVente      DateTime?

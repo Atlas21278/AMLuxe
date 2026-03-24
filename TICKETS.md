@@ -258,13 +258,13 @@ Il y a des stats par marque et par plateforme, mais pas par fournisseur.
 
 ## 🟢 NICE-TO-HAVE — Backlog long terme
 
-### T-036 · Notifications en temps réel
+### ✅ T-036 · Notifications en temps réel
 Alertes quand une commande passe au statut "Reçue", quand un article se vend, etc. via WebSocket ou Server-Sent Events.
 
 ---
 
-### T-037 · Intégration Vinted / Leboncoin
-Synchronisation automatique des annonces et des ventes depuis les plateformes. *(Mentionné dans la vision évolutive du CLAUDE.md)*
+### ✅ T-037 · Intégration Vinted / Leboncoin
+Champ `lienAnnonce` ajouté sur Article (migration appliquée). Saisie du lien dans FormulaireVente, affiché cliquable dans la liste des articles. Synchronisation automatique impossible (pas d'API publique Vinted/Leboncoin) — à implémenter quand des APIs officielles seront disponibles.
 
 ---
 
@@ -655,7 +655,7 @@ La recherche texte filtre à chaque frappe sans debounce. Déclenche un re-rende
 
 ---
 
-### T-092 · Photos d'articles
+### ✅ T-092 · Photos d'articles
 **Fichier** : `prisma/schema.prisma`, `app/commandes/[id]/page.tsx`
 Impossible d'attacher des photos à un article pour référence visuelle.
 **Fix** : Ajouter un champ `photos String[]` sur `Article`, uploader vers un storage (S3, Cloudinary ou Railway Volume), afficher dans le détail commande.

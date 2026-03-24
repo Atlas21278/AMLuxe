@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/audit'
+import { emitEvent } from '@/lib/events'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -37,6 +38,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     },
   })
   await logAudit('UPDATE', 'commande', commande.id, session.user?.email ?? undefined, { statut: body.statut })
+  if (body.statut === 'Reçue') {
+    emitEvent('commande_recue', { message: `Commande de ${commande.fournisseur} reçue`, commandeId: commande.id })
+  }
   return NextResponse.json(commande)
 }
 

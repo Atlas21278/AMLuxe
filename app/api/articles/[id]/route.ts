@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/audit'
+import { emitEvent } from '@/lib/events'
 
 const CHAMPS_SURVEILLES: (keyof {
   statut: string; prixAchat: number; prixVente: number | null; prixVenteReel: number | null;
@@ -39,6 +40,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     refFournisseur: body.refFournisseur || null,
     statut: body.statut,
     devise: body.devise || 'EUR',
+    lienAnnonce: body.lienAnnonce || null,
     prixVente: body.prixVente ? Math.max(0, Number(body.prixVente)) : null,
     plateforme: body.plateforme || null,
     prixVenteReel: body.prixVenteReel ? Math.max(0, Number(body.prixVenteReel)) : null,
@@ -66,6 +68,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   if (changements.length > 0) {
     const changementsMap = Object.fromEntries(changements.map((c) => [c.champ, { de: c.ancienne, vers: c.nouvelle }]))
     await logAudit('UPDATE', 'article', id, session.user?.email ?? undefined, changementsMap)
+  }
+
+  // Notifier si l'article passe à "Vendu"
+  if (nouveau.statut === 'Vendu' && ancien.statut !== 'Vendu') {
+    emitEvent('article_vendu', {
+      message: `${article.marque} ${article.modele} vendu${nouveau.prixVenteReel ? ` — ${nouveau.prixVenteReel} €` : ''}`,
+      articleId: id,
+    })
   }
 
   return NextResponse.json(article)

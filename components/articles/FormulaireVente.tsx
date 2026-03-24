@@ -17,6 +17,7 @@ export default function FormulaireVente({ article, onClose }: Props) {
   const [form, setForm] = useState({
     prixVente: article.prixVente?.toString() ?? '',
     plateforme: article.plateforme ?? 'Vinted',
+    lienAnnonce: (article as { lienAnnonce?: string }).lienAnnonce ?? '',
     prixVenteReel: article.prixVenteReel?.toString() ?? '',
     fraisVente: article.fraisVente?.toString() ?? '',
     dateVente: article.dateVente
@@ -41,10 +42,12 @@ export default function FormulaireVente({ article, onClose }: Props) {
         data.statut = 'En vente'
         data.prixVente = form.prixVente
         data.plateforme = form.plateforme
+        data.lienAnnonce = form.lienAnnonce || null
       } else {
         data.statut = 'Vendu'
         data.prixVente = form.prixVente || article.prixVente
         data.plateforme = form.plateforme || article.plateforme
+        data.lienAnnonce = form.lienAnnonce || null
         data.prixVenteReel = form.prixVenteReel
         data.fraisVente = form.fraisVente
         data.dateVente = form.dateVente
@@ -120,6 +123,17 @@ export default function FormulaireVente({ article, onClose }: Props) {
               {PLATEFORMES.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-white/60 mb-1.5">Lien de l&apos;annonce</label>
+          <input
+            type="url"
+            placeholder="https://www.vinted.fr/..."
+            value={form.lienAnnonce}
+            onChange={(e) => setForm({ ...form, lienAnnonce: e.target.value })}
+            className={inputClass}
+          />
         </div>
 
         {/* Champs vente finale — uniquement si mode "vendu" */}
