@@ -9,6 +9,7 @@ import {
   createTestArticle,
   createTestFrais,
   uploadTestPhoto,
+  updateTestArticle,
   TEST_PREFIX,
 } from '../helpers/api'
 
@@ -16,6 +17,7 @@ test.describe('Page Articles', () => {
   let commandeId: number
   let articleId: number
   let articleVenteId: number
+  let articleLienId: number
 
   test.beforeAll(async ({ request }) => {
     commandeId = await createTestCommande(request, `${TEST_PREFIX} Commande Articles`)
@@ -38,6 +40,23 @@ test.describe('Page Articles', () => {
       statut: 'En stock',
     })
     await createTestFrais(request, commandeId)
+
+    // Article "En vente" avec lienAnnonce pour T-101
+    articleLienId = await createTestArticle(request, commandeId, {
+      marque: 'Gucci',
+      modele: 'Marmont Matelassé',
+      prixAchat: 900,
+      etat: 'Bon état',
+      statut: 'En vente',
+    })
+    await updateTestArticle(request, articleLienId, {
+      marque: 'Gucci',
+      modele: 'Marmont Matelassé',
+      prixAchat: 900,
+      etat: 'Bon état',
+      statut: 'En vente',
+      lienAnnonce: 'https://www.vinted.fr/items/test-amluxe-101',
+    })
   })
 
   test.afterAll(async ({ request }) => {
@@ -272,5 +291,48 @@ test.describe('Page Articles', () => {
       await lienCommande.click()
       await expect(page).toHaveURL(/\/commandes\/\d+/)
     }
+  })
+
+  // ─── T-101 · Badge "En vente" cliquable ──────────────────────────────────
+
+  test('badge "En vente" sans lienAnnonce : span non cliquable', async ({ page }) => {
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    // Hermès Birkin 30 est "En stock" — son badge ne doit pas être un lien
+    await page.getByPlaceholder('Rechercher un article...').fill('Birkin')
+    await expect(page.getByText('Birkin 30').first()).toBeVisible()
+    await expect(page.locator('[data-testid="badge-lien-annonce"]')).not.toBeVisible()
+  })
+
+  test('badge "En vente" avec lienAnnonce : lien cliquable avec icône ↗', async ({ page }) => {
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Marmont')
+    await expect(page.getByText('Marmont Matelassé').first()).toBeVisible({ timeout: 8000 })
+
+    const badge = page.locator('[data-testid="badge-lien-annonce"]').first()
+    await expect(badge).toBeVisible()
+    await expect(badge).toHaveAttribute('href', 'https://www.vinted.fr/items/test-amluxe-101')
+    await expect(badge).toHaveAttribute('target', '_blank')
+    // Contient le texte "En vente"
+    await expect(badge).toContainText('En vente')
+  })
+
+  test('badge "En vente" cliquable ouvre l\'annonce dans un nouvel onglet', async ({ page, context }) => {
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Marmont')
+    await expect(page.getByText('Marmont Matelassé').first()).toBeVisible({ timeout: 8000 })
+
+    const badge = page.locator('[data-testid="badge-lien-annonce"]').first()
+    await expect(badge).toBeVisible()
+
+    // Vérifier que le clic ouvre un nouvel onglet
+    const [newPage] = await Promise.all([
+      context.waitForEvent('page'),
+      badge.click(),
+    ])
+    await expect(newPage.url()).toContain('vinted.fr/items/test-amluxe-101')
+    await newPage.close()
   })
 })

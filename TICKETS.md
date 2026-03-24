@@ -718,3 +718,10 @@ Next.js passe les props `{ error, reset }` à l'error boundary. Le composant aff
 **Fichier** : `app/articles/page.tsx`
 Afficher la première photo de l'article comme miniature dans la liste (desktop : colonne dédiée, mobile : vignette à gauche de la carte). Si aucune photo, afficher une icône neutre (sac/image).
 **Fix** : Ajouter une colonne thumbnail dans le tableau desktop et une vignette dans les cards mobiles.
+
+---
+
+### ✅ T-101 · Badge "En vente" cliquable avec lienAnnonce
+**Fichiers** : `components/ui/Badge.tsx`, `app/articles/page.tsx`, `app/commandes/[id]/page.tsx`
+Le lien annonce (Vinted/Leboncoin) d'un article "En vente" n'est accessible que via une icône dans la colonne actions, peu visible. Le badge "En vente" devrait lui-même être cliquable et ouvrir l'annonce dans un nouvel onglet.
+**Fix** : Ajouter une prop `href` optionnelle à `Badge` — si présente et statut = "En vente", le badge devient un `<a>` avec icône ↗ et hover distinct. Supprimer l'icône redondante dans la colonne actions.

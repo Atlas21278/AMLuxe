@@ -292,7 +292,7 @@ export default function CommandeDetailPage() {
                           <p className="font-medium text-white text-sm">{article.marque} {article.modele}</p>
                           {article.refFournisseur && <p className="text-xs text-white/35">{article.refFournisseur}</p>}
                         </div>
-                        <Badge statut={article.statut} />
+                        <Badge statut={article.statut} href={article.lienAnnonce ?? undefined} />
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 text-xs text-white/50">
@@ -372,7 +372,7 @@ export default function CommandeDetailPage() {
                             </span>
                           ) : <span className="text-white/20">—</span>}
                         </td>
-                        <td className="px-4 py-3"><Badge statut={article.statut} /></td>
+                        <td className="px-4 py-3"><Badge statut={article.statut} href={article.lienAnnonce ?? undefined} /></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
                             {article.statut !== 'Vendu' && (

@@ -50,6 +50,15 @@ export async function createTestArticle(
   return data.id as number
 }
 
+export async function updateTestArticle(
+  request: APIRequestContext,
+  id: number,
+  fields: Record<string, unknown>
+): Promise<void> {
+  const res = await request.put(`/api/articles/${id}`, { data: fields })
+  if (!res.ok) throw new Error(`updateTestArticle échouée: ${res.status} ${await res.text()}`)
+}
+
 // ─── Frais ───────────────────────────────────────────────────────────────────
 
 export async function createTestFrais(
