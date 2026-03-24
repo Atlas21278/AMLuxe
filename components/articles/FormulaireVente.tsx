@@ -12,7 +12,7 @@ interface Props {
 
 export default function FormulaireVente({ article, onClose }: Props) {
   const [isPending, startTransition] = useTransition()
-  const [mode, setMode] = useState<'vente' | 'vendu'>(article.statut === 'En vente' ? 'vendu' : 'vente')
+  const [mode, setMode] = useState<'vente' | 'vendu'>('vente')
 
   const [form, setForm] = useState({
     prixVente: article.prixVente?.toString() ?? '',
@@ -84,25 +84,25 @@ export default function FormulaireVente({ article, onClose }: Props) {
         <p className="text-xs text-white/40 mt-0.5">Achat : {article.prixAchat.toFixed(2)} €</p>
       </div>
 
-      {/* Toggle mode — masqué si déjà en vente (on passe direct à "vendu") */}
-      {article.statut !== 'En vente' && (
-        <div className="flex gap-2 mb-5">
-          {(['vente', 'vendu'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                mode === m
-                  ? 'bg-purple-600/20 border-purple-500/40 text-purple-400'
-                  : 'border-white/10 text-white/50 hover:bg-white/5'
-              }`}
-            >
-              {m === 'vente' ? 'Mettre en vente' : 'Marquer comme vendu'}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Toggle mode */}
+      <div className="flex gap-2 mb-5">
+        {(['vente', 'vendu'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              mode === m
+                ? 'bg-purple-600/20 border-purple-500/40 text-purple-400'
+                : 'border-white/10 text-white/50 hover:bg-white/5'
+            }`}
+          >
+            {m === 'vente'
+              ? (article.statut === 'En vente' ? 'Modifier l\'annonce' : 'Mettre en vente')
+              : 'Marquer comme vendu'}
+          </button>
+        ))}
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
