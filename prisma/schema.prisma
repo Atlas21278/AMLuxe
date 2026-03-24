@@ -84,6 +84,19 @@ model AbonnementMensuel {
   updatedAt DateTime @updatedAt
 }
 
+model Audit {
+  id        Int      @id @default(autoincrement())
+  action    String   // CREATE | UPDATE | DELETE
+  ressource String   // commande | article | frais | user
+  cible     Int?     // ID de la ressource concernée
+  details   String?  // JSON optionnel avec les données modifiées
+  userEmail String?
+  createdAt DateTime @default(now())
+
+  @@index([ressource])
+  @@index([createdAt])
+}
+
 model Config {
   id        Int      @id @default(autoincrement())
   cle       String   @unique

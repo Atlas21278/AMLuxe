@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { logAudit } from '@/lib/audit'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -92,5 +93,6 @@ export async function POST(req: NextRequest) {
     },
     include: { articles: true, frais: true },
   })
+  await logAudit('CREATE', 'commande', commande.id, session.user?.email ?? undefined, { fournisseur: commande.fournisseur })
   return NextResponse.json(commande, { status: 201 })
 }

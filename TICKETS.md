@@ -278,7 +278,7 @@ Support EUR, USD, GBP avec conversion automatique.
 
 ---
 
-### T-040 · Mode "Remember Me" sur le login
+### ✅ T-040 · Mode "Remember Me" sur le login
 Option pour rester connecté 30 jours au lieu de la durée de session standard.
 
 ---
@@ -293,12 +293,12 @@ Créer un `.env.example` avec toutes les variables requises documentées pour fa
 
 ---
 
-### T-043 · Composant `<Icon>` réutilisable
+### ✅ T-043 · Composant `<Icon>` réutilisable
 Tous les SVGs sont inline dans chaque composant. Créer un composant centralisé `<Icon name="trash" size={20} />`.
 
 ---
 
-### T-044 · Audit log — qui a fait quoi et quand
+### ✅ T-044 · Audit log — qui a fait quoi et quand
 Table `Audit` pour tracer toutes les créations/modifications/suppressions avec l'utilisateur responsable.
 
 ---

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { logAudit } from '@/lib/audit'
 
 const CHAMPS_SURVEILLES: (keyof {
   statut: string; prixAchat: number; prixVente: number | null; prixVenteReel: number | null;
@@ -61,6 +62,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     await prisma.articleHistorique.createMany({ data: changements })
   }
 
+  if (changements.length > 0) {
+    const changementsMap = Object.fromEntries(changements.map((c) => [c.champ, { de: c.ancienne, vers: c.nouvelle }]))
+    await logAudit('UPDATE', 'article', id, session.user?.email ?? undefined, changementsMap)
+  }
+
   return NextResponse.json(article)
 }
 
@@ -72,5 +78,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     where: { id: Number(params.id) },
     data: { deletedAt: new Date() },
   })
+  await logAudit('DELETE', 'article', Number(params.id), session.user?.email ?? undefined)
   return NextResponse.json({ ok: true })
 }

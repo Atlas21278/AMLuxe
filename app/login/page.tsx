@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
 
@@ -33,6 +34,7 @@ export default function LoginPage() {
     const result = await signIn('credentials', {
       email,
       password,
+      rememberMe: rememberMe.toString(),
       redirect: false,
     })
 
@@ -144,6 +146,18 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+
+          <label className="flex items-center gap-2.5 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border border-white/20 bg-white/5 accent-purple-500 cursor-pointer"
+            />
+            <span className="text-sm text-white/50 group-hover:text-white/70 transition-colors select-none">
+              Se souvenir de moi <span className="text-white/25">(30 jours)</span>
+            </span>
+          </label>
 
           {error && (
             <div className="login-error">
