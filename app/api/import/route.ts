@@ -35,6 +35,27 @@ interface CommandeImport {
 
 const MAX_COMMANDES = 500
 
+// Rate limiting : max 5 imports par tranche de 5 minutes par utilisateur
+const importAttempts = new Map<string, { count: number; resetAt: number }>()
+const MAX_IMPORTS = 5
+const IMPORT_WINDOW_MS = 5 * 60 * 1000
+
+function checkImportRateLimit(userId: string): boolean {
+  const now = Date.now()
+  const entry = importAttempts.get(userId)
+  if (!entry || now > entry.resetAt) {
+    // Purger les entrées expirées
+    for (const [key, val] of importAttempts) {
+      if (now > val.resetAt) importAttempts.delete(key)
+    }
+    importAttempts.set(userId, { count: 1, resetAt: now + IMPORT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= MAX_IMPORTS) return false
+  entry.count++
+  return true
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
@@ -42,6 +63,15 @@ export async function POST(req: NextRequest) {
   // Admins seulement
   if (session.user?.role !== 'admin') {
     return NextResponse.json({ error: 'Accès refusé — réservé aux admins' }, { status: 403 })
+  }
+
+  // Rate limiting par utilisateur
+  const userId = session.user?.id ?? session.user?.email ?? 'unknown'
+  if (!checkImportRateLimit(userId)) {
+    return NextResponse.json(
+      { error: `Trop d'imports : maximum ${MAX_IMPORTS} par tranche de 5 minutes` },
+      { status: 429 }
+    )
   }
 
   const body: { commandes: CommandeImport[] } = await req.json()

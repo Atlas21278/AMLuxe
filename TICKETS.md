@@ -630,7 +630,7 @@ Avec 50+ articles, les opérations répétitives (passer plusieurs articles en "
 
 ---
 
-### T-089 · Rate limiting manquant sur `/api/import`
+### ✅ T-089 · Rate limiting manquant sur `/api/import`
 **Fichier** : `app/api/import/route.ts`
 La route accepte 500 commandes par requête sans limite par utilisateur ni throttling. Un utilisateur malveillant peut saturer la DB.
 **Note** : Une limite de taille (max 500 lignes par import) est en place, mais aucun throttling par session (ex: 5 imports/min) n'existe.
