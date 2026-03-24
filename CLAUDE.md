@@ -81,6 +81,7 @@ npx prisma migrate dev --name <nom>  # Créer une migration nommée
 - **Toujours protéger les routes API** avec `getServerSession(authOptions)`
 - **Langue** : tout en français (interface, commentaires, noms de variables métier)
 - **Commits** : toujours commiter + pusher après une fonctionnalité terminée
+- **Tests** : toute nouvelle fonctionnalité doit être couverte par un test Playwright dans `tests/e2e/`. Ajouter les cas dans le fichier existant correspondant (ex: `05-articles.spec.ts` pour les articles) ou créer un nouveau fichier numéroté si la feature est dans une nouvelle zone.
 
 ## Vision évolutive
 L'app est pensée pour évoluer vers l'automatisation :

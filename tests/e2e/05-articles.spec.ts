@@ -8,6 +8,7 @@ import {
   deleteTestCommande,
   createTestArticle,
   createTestFrais,
+  uploadTestPhoto,
   TEST_PREFIX,
 } from '../helpers/api'
 
@@ -176,6 +177,85 @@ test.describe('Page Articles', () => {
 
     // Toast de succès
     await expect(page.getByText(/article|vente/i).last()).toBeVisible({ timeout: 5000 })
+  })
+
+  // ─── Miniature et galerie photos ─────────────────────────────────────────
+
+  test('icône placeholder affiché quand aucune photo', async ({ page }) => {
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Birkin')
+    await expect(page.getByText('Birkin 30').first()).toBeVisible()
+
+    // Doit afficher l'icône SVG placeholder (pas d'img dans la cellule photo)
+    const row = page.locator('tr', { hasText: 'Birkin 30' }).first()
+    await expect(row.locator('img')).not.toBeVisible()
+    await expect(row.locator('svg').first()).toBeVisible()
+  })
+
+  test('miniature affichée après upload d\'une photo', async ({ page, request }) => {
+    await uploadTestPhoto(request, articleId)
+
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Birkin')
+    await expect(page.getByText('Birkin 30').first()).toBeVisible()
+
+    // L'img thumbnail doit être présente
+    const row = page.locator('tr', { hasText: 'Birkin 30' }).first()
+    await expect(row.locator('img').first()).toBeVisible()
+  })
+
+  test('clic sur la miniature ouvre la galerie', async ({ page, request }) => {
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Birkin')
+    await expect(page.getByText('Birkin 30').first()).toBeVisible()
+
+    // Cliquer sur le bouton thumbnail
+    const row = page.locator('tr', { hasText: 'Birkin 30' }).first()
+    await row.locator('button').first().click()
+
+    // La galerie s'ouvre : overlay + image + compteur "1 /"
+    await expect(page.locator('text=/1 \\//i')).toBeVisible({ timeout: 3000 })
+    await expect(page.locator('img[alt="Photo 1"]')).toBeVisible()
+  })
+
+  test('fermer la galerie avec Escape', async ({ page }) => {
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Birkin')
+    const row = page.locator('tr', { hasText: 'Birkin 30' }).first()
+    await row.locator('button').first().click()
+    await expect(page.locator('img[alt="Photo 1"]')).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(page.locator('img[alt="Photo 1"]')).not.toBeVisible()
+  })
+
+  test('galerie avec plusieurs photos : navigation flèches et dots', async ({ page, request }) => {
+    // Uploader une 2e photo
+    await uploadTestPhoto(request, articleId)
+
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Birkin')
+    const row = page.locator('tr', { hasText: 'Birkin 30' }).first()
+    await row.locator('button').first().click()
+
+    // Badge compteur doit afficher "1 / 2" (ou plus selon uploads précédents)
+    await expect(page.locator('text=/ \\/ /').first()).toBeVisible()
+
+    // Flèche droite visible
+    await expect(page.locator('button', { hasText: '' }).filter({ has: page.locator('svg path[d*="M9 5"]') })).toBeVisible()
+
+    // Clic flèche droite → photo suivante
+    await page.keyboard.press('ArrowRight')
+    await expect(page.locator('img[alt="Photo 2"]')).toBeVisible({ timeout: 3000 })
+
+    // Clic flèche gauche → retour photo 1
+    await page.keyboard.press('ArrowLeft')
+    await expect(page.locator('img[alt="Photo 1"]')).toBeVisible({ timeout: 3000 })
   })
 
   // ─── Lien vers la commande ────────────────────────────────────────────────
