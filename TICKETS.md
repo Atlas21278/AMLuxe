@@ -558,4 +558,133 @@ Le pattern `mounted` avec `useState(false)` + `useEffect` résout l'hydratation 
 
 ---
 
-*Fichier mis à jour le 2026-03-23.*
+---
+
+## 🔴 Nouveaux bugs identifiés (2026-03-24)
+
+### T-080 · Incohérence bénéfice dashboard vs statistiques
+**Fichier** : `app/page.tsx` vs `lib/calculs.ts`
+Le dashboard calcule le bénéfice comme `prixVenteReel - fraisVente - prixAchat` sans déduire les frais de commande. La page statistiques utilise `calculerBenefice()` qui les inclut. L'utilisateur voit deux chiffres différents pour la même période.
+**Fix** : Utiliser `calculerBenefice()` (ou une version filtrée sur le mois) dans `app/page.tsx`.
+
+---
+
+### T-081 · `confirm()` natif pour supprimer un article
+**Fichier** : `app/commandes/[id]/page.tsx`
+La suppression d'un article utilise `window.confirm()` (navigateur natif) au lieu d'une vraie modale comme pour les commandes. Style incohérent, bloquant sur certains navigateurs.
+**Fix** : Remplacer par le composant `<Modal>` avec confirmation inline, comme T-027.
+
+---
+
+### T-082 · ImportModal ne vérifie pas `response.ok`
+**Fichier** : `components/ImportModal.tsx`
+Le `fetch` vers `/api/import` parse directement le JSON sans vérifier `response.ok`. Si l'API renvoie une erreur HTML (500, 502...), le JSON.parse plante sans message clair.
+**Fix** : Ajouter `if (!res.ok) throw new Error(...)` avant le parse.
+
+---
+
+### T-083 · Fuite mémoire légère sur `loginAttempts`
+**Fichier** : `lib/auth.ts`
+La `Map` des tentatives de connexion accumule des entrées pour chaque email unique sans jamais nettoyer les entrées expirées. Sur un serveur long-running avec beaucoup d'IPs, ça grossit indéfiniment.
+**Fix** : Supprimer l'entrée après le délai de 15 min ou utiliser un `setTimeout` pour purger.
+
+---
+
+## 🟠 Nouvelles features haute priorité (2026-03-24)
+
+### T-084 · Page Objectifs vide alors qu'elle est dans la nav
+**Fichier** : `app/objectifs/page.tsx`
+La page existe et est accessible depuis la sidebar, mais elle est vide. En production, ça renvoie une page blanche.
+**Suggestion** : Objectifs mensuels (CA cible, bénéfice cible, nb articles vendus cible) avec barre de progression et comparaison mois précédent.
+
+---
+
+### T-085 · Page Abonnements vide alors qu'elle est dans la nav
+**Fichier** : `app/parametres/abonnements/page.tsx`
+Même problème que T-084. Le modèle `AbonnementMensuel` existe en DB et est intégré dans `calculerBenefice()`, mais l'interface de gestion est vide.
+**Suggestion** : Liste des abonnements par mois (Vinted Premium, Leboncoin Boost...) avec total mensuel et impact sur le bénéfice.
+
+---
+
+### T-086 · Alerte marge négative dans FormulaireVente
+**Fichier** : `components/articles/FormulaireVente.tsx`
+Aucun avertissement si l'utilisateur saisit un `prixVenteReel` inférieur à `prixAchat + fraisVente`. La vente est enregistrée en perte sans signal visuel.
+**Fix** : Calculer la marge en temps réel dans le formulaire, afficher en rouge si < 0 avec le message "Vous vendez à perte".
+
+---
+
+## 🟡 Nouvelles features moyenne priorité (2026-03-24)
+
+### T-087 · Filtres persistants dans l'URL
+**Fichiers** : `app/articles/page.tsx`, `app/commandes/page.tsx`
+Les filtres (statut, marque, recherche) se réinitialisent à chaque rechargement de page. Impossible de partager ou bookmarquer une vue filtrée.
+**Fix** : Stocker les filtres dans les query params (`?statut=Vendu&marque=Hermès`) via `useSearchParams` + `router.push`.
+
+---
+
+### T-088 · Actions groupées sur les articles
+**Fichier** : `app/articles/page.tsx`
+Avec 50+ articles, les opérations répétitives (passer plusieurs articles en "En vente", les supprimer...) se font une par une.
+**Fix** : Ajouter des checkboxes, un compteur de sélection et un menu d'actions groupées (changer statut, supprimer).
+
+---
+
+### T-089 · Rate limiting manquant sur `/api/import`
+**Fichier** : `app/api/import/route.ts`
+La route accepte 500 commandes par requête sans limite par utilisateur ni throttling. Un utilisateur malveillant peut saturer la DB.
+**Fix** : Limiter à N requêtes par minute par session (ex: 5 imports/min).
+
+---
+
+### T-090 · Session expirée → erreur silencieuse au lieu d'un redirect
+**Fichiers** : toutes les pages client
+Quand le JWT expire (8h), les fetch API retournent 401 mais les pages n'ont pas de gestionnaire global — l'utilisateur voit une page vide ou un état de chargement infini.
+**Fix** : Intercepter les 401 dans un wrapper fetch global et appeler `signOut({ callbackUrl: '/login' })`.
+
+---
+
+## 🟢 Nouvelles features basse priorité (2026-03-24)
+
+### T-091 · Debounce sur la recherche articles
+**Fichier** : `app/articles/page.tsx`
+La recherche texte filtre à chaque frappe sans debounce. Déclenche un re-render complet à chaque lettre.
+**Fix** : Ajouter `useDebounce` (300ms) sur le champ de recherche.
+
+---
+
+### T-092 · Photos d'articles
+**Fichier** : `prisma/schema.prisma`, `app/commandes/[id]/page.tsx`
+Impossible d'attacher des photos à un article pour référence visuelle.
+**Fix** : Ajouter un champ `photos String[]` sur `Article`, uploader vers un storage (S3, Cloudinary ou Railway Volume), afficher dans le détail commande.
+
+---
+
+### T-093 · Détection de doublons de commandes
+**Fichier** : `app/api/commandes/route.ts`
+Possible de créer deux commandes identiques (même fournisseur, même date) sans avertissement.
+**Fix** : Vérifier à la création si une commande proche existe (même fournisseur ± 7 jours) et afficher un warning côté UI avant validation.
+
+---
+
+### T-094 · Raccourcis clavier
+**Fichiers** : toutes les pages principales
+Aucun raccourci clavier disponible.
+**Suggestion** : `N` = nouvelle commande (sur `/commandes`), `E` = exporter, `?` = aide raccourcis.
+
+---
+
+### T-095 · Dead code — `lib/actions/commandes.ts`
+**Fichier** : `lib/actions/commandes.ts`
+Des Server Actions sont définies mais tout le code utilise des appels `fetch` directs vers l'API. Ce fichier n'est importé nulle part.
+**Fix** : Supprimer ou documenter si c'est une migration prévue.
+
+---
+
+### T-096 · Champs `trackingData` et `trackingUpdatedAt` inutilisés
+**Fichier** : `prisma/schema.prisma`, `app/commandes/[id]/page.tsx`
+Ces champs ont été ajoutés lors de l'intégration TrackingMore (abandonnée). Ils occupent de la place dans le schema sans être utilisés.
+**Fix** : Supprimer via migration Prisma, ou garder documentés si réactivation future prévue.
+
+---
+
+*Fichier mis à jour le 2026-03-24.*
