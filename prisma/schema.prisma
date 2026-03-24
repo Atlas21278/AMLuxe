@@ -13,8 +13,6 @@ model Commande {
   date        DateTime  @default(now())
   statut      String    @default("En préparation")
   tracking          String?
-  trackingData      Json?
-  trackingUpdatedAt DateTime?
   notes             String?
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())

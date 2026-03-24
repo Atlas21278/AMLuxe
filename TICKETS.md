@@ -676,14 +676,14 @@ Aucun raccourci clavier disponible.
 
 ---
 
-### T-095 · Dead code — `lib/actions/commandes.ts`
+### ✅ T-095 · Dead code — `lib/actions/commandes.ts`
 **Fichier** : `lib/actions/commandes.ts`
 Des Server Actions sont définies mais tout le code utilise des appels `fetch` directs vers l'API. Ce fichier n'est importé nulle part.
 **Fix** : Supprimer ou documenter si c'est une migration prévue.
 
 ---
 
-### T-096 · Champs `trackingData` et `trackingUpdatedAt` inutilisés
+### ✅ T-096 · Champs `trackingData` et `trackingUpdatedAt` inutilisés
 **Fichier** : `prisma/schema.prisma`, `app/commandes/[id]/page.tsx`
 Ces champs ont été ajoutés lors de l'intégration TrackingMore (abandonnée). Ils occupent de la place dans le schema sans être utilisés.
 **Fix** : Supprimer via migration Prisma, ou garder documentés si réactivation future prévue.
