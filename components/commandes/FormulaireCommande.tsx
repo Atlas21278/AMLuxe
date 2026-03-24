@@ -380,7 +380,7 @@ export default function FormulaireCommande({ commande, fournisseurs = [], onClos
         </div>
       )}
 
-      <div className="flex gap-3 pt-4">
+      <div className="flex gap-3 pt-4 sticky bottom-0 bg-[#1a1a26] pb-1 -mx-6 px-6 border-t border-white/5 mt-2">
         <button
           type="button"
           onClick={onClose}
