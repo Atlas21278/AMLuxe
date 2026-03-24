@@ -13,6 +13,7 @@ export default function PhotosArticle({ articleId, photos, onUpdate }: Props) {
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const inputId = `photo-upload-${articleId}`
 
   const handleUpload = async (file: File) => {
     setUploading(true)
@@ -58,18 +59,16 @@ export default function PhotosArticle({ articleId, photos, onUpdate }: Props) {
             <button
               type="button"
               onClick={() => handleDelete(i)}
-              className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full text-white text-xs flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
             >
               ×
             </button>
           </div>
         ))}
         {photos.length < 6 && (
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => inputRef.current?.click()}
-            className="w-20 h-20 border border-dashed border-white/15 rounded-lg flex flex-col items-center justify-center gap-1 text-white/30 hover:text-white/60 hover:border-white/30 transition-colors disabled:opacity-50"
+          <label
+            htmlFor={inputId}
+            className={`w-20 h-20 border border-dashed border-white/15 rounded-lg flex flex-col items-center justify-center gap-1 text-white/30 hover:text-white/60 hover:border-white/30 transition-colors cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
           >
             {uploading ? (
               <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
@@ -81,11 +80,12 @@ export default function PhotosArticle({ articleId, photos, onUpdate }: Props) {
                 <span className="text-xs">Photo</span>
               </>
             )}
-          </button>
+          </label>
         )}
       </div>
       <input
         ref={inputRef}
+        id={inputId}
         type="file"
         accept="image/*"
         className="hidden"
