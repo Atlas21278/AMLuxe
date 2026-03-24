@@ -691,3 +691,10 @@ Ces champs ont été ajoutés lors de l'intégration TrackingMore (abandonnée).
 ---
 
 *Fichier mis à jour le 2026-03-24. Audit complet 2026-03-24 : T-041, T-084, T-085 fermés. T-080 : `calculerBenefice()` orpheline confirmée. T-089/T-090 partiellement implémentés.*
+
+---
+
+### ✅ T-097 · Miniature photo dans la liste des articles
+**Fichier** : `app/articles/page.tsx`
+Afficher la première photo de l'article comme miniature dans la liste (desktop : colonne dédiée, mobile : vignette à gauche de la carte). Si aucune photo, afficher une icône neutre (sac/image).
+**Fix** : Ajouter une colonne thumbnail dans le tableau desktop et une vignette dans les cards mobiles.

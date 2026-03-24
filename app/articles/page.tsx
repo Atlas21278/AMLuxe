@@ -285,12 +285,23 @@ function ArticlesPageInner() {
                 : null
               return (
                 <div key={article.id} className="px-4 py-3.5 active:bg-white/5 transition-colors">
-                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <div>
-                      <p className="font-medium text-white text-sm">{article.marque} {article.modele}</p>
-                      {article.refFournisseur && <p className="text-xs text-white/35">{article.refFournisseur}</p>}
+                  <div className="flex items-start gap-3 mb-1.5">
+                    {article.photos?.[0] ? (
+                      <img src={article.photos[0]} alt="" className="w-10 h-10 object-cover rounded-lg border border-white/10 shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg border border-white/8 bg-white/3 flex items-center justify-center shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white/15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex-1 flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-white text-sm">{article.marque} {article.modele}</p>
+                        {article.refFournisseur && <p className="text-xs text-white/35">{article.refFournisseur}</p>}
+                      </div>
+                      <Badge statut={article.statut} />
                     </div>
-                    <Badge statut={article.statut} />
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 text-xs text-white/40">
@@ -344,6 +355,7 @@ function ArticlesPageInner() {
                     className="w-4 h-4 rounded border-white/20 bg-white/5 accent-purple-500 cursor-pointer"
                   />
                 </th>
+                <th className="px-4 py-3 w-12" />
                 <th className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider">Article</th>
                 <th className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider">Commande</th>
                 <th className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider">État</th>
@@ -367,6 +379,17 @@ function ArticlesPageInner() {
                         onChange={() => toggleOne(article.id)}
                         className="w-4 h-4 rounded border-white/20 bg-white/5 accent-purple-500 cursor-pointer"
                       />
+                    </td>
+                    <td className="px-4 py-3.5">
+                      {article.photos?.[0] ? (
+                        <img src={article.photos[0]} alt="" className="w-9 h-9 object-cover rounded-lg border border-white/10" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-lg border border-white/8 bg-white/3 flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white/15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3.5">
                       <p className="font-medium text-white">{article.marque} {article.modele}</p>
