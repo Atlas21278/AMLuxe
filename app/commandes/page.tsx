@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { toast } from 'sonner'
 import Modal from '@/components/ui/Modal'
 import FormulaireCommande from '@/components/commandes/FormulaireCommande'
@@ -180,7 +180,9 @@ export default function CommandesPage() {
             ))}
           </div>
         ) : (
-          <ListeCommandes commandes={commandes} onRefresh={fetchCommandes} />
+          <Suspense>
+            <ListeCommandes commandes={commandes} onRefresh={fetchCommandes} />
+          </Suspense>
         )}
       </div>
 

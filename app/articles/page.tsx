@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
@@ -16,21 +17,35 @@ type ArticleAvecCommande = Article & { commande: { fournisseur: string; id: numb
 const FILTRES_STATUT = ['tous', 'En stock', 'En vente', 'Vendu', 'En retour', 'Endommagé', 'Litige']
 const PAGE_SIZE = 20
 
-export default function ArticlesPage() {
+function ArticlesPageInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [data, setData] = useState<ArticleAvecCommande[]>([])
   const [total, setTotal] = useState(0)
   const [stats, setStats] = useState({ total: 0, enStock: 0, enVente: 0, vendu: 0 })
   const [marquesDisponibles, setMarquesDisponibles] = useState<string[]>([])
   const [plateformesDisponibles, setPlateformesDisponibles] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [filtreStatut, setFiltreStatut] = useState('tous')
-  const [filtreMarque, setFiltreMarque] = useState('toutes')
-  const [filtrePlateforme, setFiltrePlateforme] = useState('toutes')
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('search') ?? '')
+  const [filtreStatut, setFiltreStatut] = useState(() => searchParams.get('statut') ?? 'tous')
+  const [filtreMarque, setFiltreMarque] = useState(() => searchParams.get('marque') ?? 'toutes')
+  const [filtrePlateforme, setFiltrePlateforme] = useState(() => searchParams.get('plateforme') ?? 'toutes')
   const [venteArticle, setVenteArticle] = useState<Article | null>(null)
   const [editArticle, setEditArticle] = useState<Article | null>(null)
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(() => Number(searchParams.get('page') ?? 1))
+
+  // T-087 — synchroniser les filtres dans l'URL
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (debouncedSearch) params.set('search', debouncedSearch)
+    if (filtreStatut !== 'tous') params.set('statut', filtreStatut)
+    if (filtreMarque !== 'toutes') params.set('marque', filtreMarque)
+    if (filtrePlateforme !== 'toutes') params.set('plateforme', filtrePlateforme)
+    if (page > 1) params.set('page', String(page))
+    router.replace(`/articles${params.size ? `?${params}` : ''}`, { scroll: false })
+  }, [debouncedSearch, filtreStatut, filtreMarque, filtrePlateforme, page, router])
 
   // T-091 — debounce 300ms sur la recherche
   useEffect(() => {
@@ -353,5 +368,13 @@ export default function ArticlesPage() {
       )}
 
     </div>
+  )
+}
+
+export default function ArticlesPage() {
+  return (
+    <Suspense>
+      <ArticlesPageInner />
+    </Suspense>
   )
 }

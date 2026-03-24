@@ -616,7 +616,7 @@ Aucun avertissement si l'utilisateur saisit un `prixVenteReel` inférieur à `pr
 
 ## 🟡 Nouvelles features moyenne priorité (2026-03-24)
 
-### T-087 · Filtres persistants dans l'URL
+### ✅ T-087 · Filtres persistants dans l'URL
 **Fichiers** : `app/articles/page.tsx`, `app/commandes/page.tsx`
 Les filtres (statut, marque, recherche) se réinitialisent à chaque rechargement de page. Impossible de partager ou bookmarquer une vue filtrée.
 **Fix** : Stocker les filtres dans les query params (`?statut=Vendu&marque=Hermès`) via `useSearchParams` + `router.push`.
