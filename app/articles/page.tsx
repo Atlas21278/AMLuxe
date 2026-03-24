@@ -7,6 +7,7 @@ import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import ShortcutsHelp from '@/components/ui/ShortcutsHelp'
+import PhotoGallery from '@/components/ui/PhotoGallery'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { toast } from 'sonner'
 import type { Article } from '@prisma/client'
@@ -18,6 +19,12 @@ type ArticleAvecCommande = Article & { commande: { fournisseur: string; id: numb
 
 const FILTRES_STATUT = ['tous', 'En stock', 'En vente', 'Vendu', 'En retour', 'Endommagé', 'Litige']
 const PAGE_SIZE = 20
+
+const PhotoIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white/15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+)
 
 function ArticlesPageInner() {
   const router = useRouter()
@@ -39,6 +46,7 @@ function ArticlesPageInner() {
   const [page, setPage] = useState(() => Number(searchParams.get('page') ?? 1))
   const [selection, setSelection] = useState<Set<number>>(new Set())
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [gallery, setGallery] = useState<{ photos: string[]; index: number; label: string } | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const toggleOne = (id: number) => setSelection((prev) => {
@@ -286,13 +294,21 @@ function ArticlesPageInner() {
               return (
                 <div key={article.id} className="px-4 py-3.5 active:bg-white/5 transition-colors">
                   <div className="flex items-start gap-3 mb-1.5">
-                    {article.photos?.[0] ? (
-                      <img src={article.photos[0]} alt="" className="w-10 h-10 object-cover rounded-lg border border-white/10 shrink-0" />
+                    {article.photos?.length > 0 ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setGallery({ photos: article.photos, index: 0, label: `${article.marque} ${article.modele}` }) }}
+                        className="relative w-11 h-11 rounded-xl overflow-hidden border border-white/10 shrink-0 active:scale-95 transition-transform"
+                      >
+                        <img src={article.photos[0]} alt="" className="w-full h-full object-cover" />
+                        {article.photos.length > 1 && (
+                          <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[9px] font-medium rounded px-1 leading-4">
+                            {article.photos.length}
+                          </span>
+                        )}
+                      </button>
                     ) : (
-                      <div className="w-10 h-10 rounded-lg border border-white/8 bg-white/3 flex items-center justify-center shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white/15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                      <div className="w-11 h-11 rounded-xl border border-white/6 bg-white/3 flex items-center justify-center shrink-0">
+                        <PhotoIcon />
                       </div>
                     )}
                     <div className="flex-1 flex items-start justify-between gap-2">
@@ -380,14 +396,27 @@ function ArticlesPageInner() {
                         className="w-4 h-4 rounded border-white/20 bg-white/5 accent-purple-500 cursor-pointer"
                       />
                     </td>
-                    <td className="px-4 py-3.5">
-                      {article.photos?.[0] ? (
-                        <img src={article.photos[0]} alt="" className="w-9 h-9 object-cover rounded-lg border border-white/10" />
+                    <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                      {article.photos?.length > 0 ? (
+                        <button
+                          onClick={() => setGallery({ photos: article.photos, index: 0, label: `${article.marque} ${article.modele}` })}
+                          className="relative group w-10 h-10 rounded-xl overflow-hidden border border-white/10 hover:border-white/30 transition-all hover:scale-105 block"
+                        >
+                          <img src={article.photos[0]} alt="" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                            </svg>
+                          </div>
+                          {article.photos.length > 1 && (
+                            <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[9px] font-medium rounded px-1 leading-4">
+                              {article.photos.length}
+                            </span>
+                          )}
+                        </button>
                       ) : (
-                        <div className="w-9 h-9 rounded-lg border border-white/8 bg-white/3 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white/15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
+                        <div className="w-10 h-10 rounded-xl border border-white/6 bg-white/3 flex items-center justify-center">
+                          <PhotoIcon />
                         </div>
                       )}
                     </td>
@@ -502,6 +531,16 @@ function ArticlesPageInner() {
 
       {showShortcuts && (
         <ShortcutsHelp shortcuts={shortcutList} onClose={() => setShowShortcuts(false)} />
+      )}
+
+      {gallery && (
+        <PhotoGallery
+          photos={gallery.photos}
+          index={gallery.index}
+          label={gallery.label}
+          onClose={() => setGallery(null)}
+          onNavigate={(i) => setGallery((g) => g ? { ...g, index: i } : null)}
+        />
       )}
 
     </div>
