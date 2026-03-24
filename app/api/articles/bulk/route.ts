@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ updated: ids.length })
 }
 
-// DELETE /api/articles/bulk — supprimer plusieurs articles
+// DELETE /api/articles/bulk — soft delete plusieurs articles
 export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
@@ -31,9 +31,10 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'ids requis' }, { status: 400 })
   }
 
-  await prisma.$transaction(
-    ids.map((id: number) => prisma.article.delete({ where: { id } }))
-  )
+  await prisma.article.updateMany({
+    where: { id: { in: ids.map(Number) } },
+    data: { deletedAt: new Date() },
+  })
 
   return NextResponse.json({ deleted: ids.length })
 }

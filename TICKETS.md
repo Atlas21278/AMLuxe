@@ -179,7 +179,7 @@ Dans `/commandes/[id]` on ne sait pas facilement revenir en arrière.
 
 ---
 
-### T-025 · Soft delete pour les commandes et articles
+### ✅ T-025 · Soft delete pour les commandes et articles
 **Fichier** : `prisma/schema.prisma`
 La suppression est irréversible et immédiate.
 **Fix** : Ajouter un champ `deletedAt: DateTime?` + filtrer les requêtes pour exclure les enregistrements supprimés + bouton "Restaurer" dans l'UI.

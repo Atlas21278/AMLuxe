@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   // Sans pagination : retour compat (stats, dashboard, etc.)
   if (!pageParam && !commandeId) {
     const articles = await prisma.article.findMany({
+      where: { deletedAt: null },
       include: { commande: { include: { frais: true } } },
       orderBy: { createdAt: 'desc' },
     })
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
   // Filtre par commandeId (détail commande — pas de pagination)
   if (commandeId) {
     const articles = await prisma.article.findMany({
-      where: { commandeId: Number(commandeId) },
+      where: { commandeId: Number(commandeId), deletedAt: null },
       include: { commande: { include: { frais: true } } },
       orderBy: { createdAt: 'desc' },
     })
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
   // Pagination + filtres serveur
   const page = Math.max(1, Number(pageParam))
   const where = {
+    deletedAt: null,
     ...(search ? {
       OR: [
         { marque: { contains: search, mode: 'insensitive' as const } },

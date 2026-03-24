@@ -8,8 +8,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
 
   const commande = await prisma.commande.findUnique({
-    where: { id: Number(params.id) },
-    include: { articles: true, frais: true },
+    where: { id: Number(params.id), deletedAt: null },
+    include: { articles: { where: { deletedAt: null } }, frais: true },
   })
   if (!commande) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(commande)
@@ -47,6 +47,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: 'Accès refusé — réservé aux admins' }, { status: 403 })
   }
 
-  await prisma.commande.delete({ where: { id: Number(params.id) } })
+  await prisma.commande.update({
+    where: { id: Number(params.id) },
+    data: { deletedAt: new Date() },
+  })
   return NextResponse.json({ ok: true })
 }

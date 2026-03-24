@@ -16,6 +16,7 @@ model Commande {
   trackingData      Json?
   trackingUpdatedAt DateTime?
   notes             String?
+  deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   articles    Article[]
@@ -24,6 +25,7 @@ model Commande {
   @@index([fournisseur])
   @@index([statut])
   @@index([date])
+  @@index([deletedAt])
 }
 
 model Article {
@@ -40,6 +42,7 @@ model Article {
   fraisVente     Float?
   dateVente      DateTime?
   notes          String?
+  deletedAt      DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   commandeId     Int
@@ -49,6 +52,7 @@ model Article {
   @@index([statut])
   @@index([commandeId])
   @@index([plateforme])
+  @@index([deletedAt])
 }
 
 model Frais {

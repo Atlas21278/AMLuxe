@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   const dateTo = searchParams.get('dateTo') ?? ''
 
   const where = {
+    deletedAt: null,
     ...(search ? { fournisseur: { contains: search, mode: 'insensitive' as const } } : {}),
     ...(statut && statut !== 'tous' ? { statut } : {}),
     ...(dateFrom || dateTo ? {
