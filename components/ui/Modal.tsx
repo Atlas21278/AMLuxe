@@ -65,13 +65,11 @@ export default function Modal({ title, onClose, children, footer, size = 'md' }:
         </div>
 
         {/* Body scrollable avec indicateur */}
-        <div className="relative flex-1 min-h-0">
-          <div ref={bodyRef} className="h-full overflow-y-auto px-4 sm:px-6 py-5">
-            {children}
-          </div>
+        <div ref={bodyRef} className="relative flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-5">
+          {children}
           {/* T-073 — dégradé indicateur de scroll */}
           {showScrollHint && (
-            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#1a1a26] to-transparent flex items-end justify-center pb-2">
+            <div className="pointer-events-none sticky bottom-0 left-0 right-0 h-12 -mb-5 bg-gradient-to-t from-[#1a1a26] to-transparent flex items-end justify-center pb-2">
               <span className="text-white/30 text-xs">↓ défiler</span>
             </div>
           )}

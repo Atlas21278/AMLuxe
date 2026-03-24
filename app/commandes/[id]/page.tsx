@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import Badge from '@/components/ui/Badge'
@@ -9,6 +9,7 @@ import Modal from '@/components/ui/Modal'
 import TrackingWidget from '@/components/ui/TrackingWidget'
 import FormulaireArticle from '@/components/articles/FormulaireArticle'
 import FormulaireVente from '@/components/articles/FormulaireVente'
+import PhotosArticle from '@/components/articles/PhotosArticle'
 import FormulaireFrais from '@/components/commandes/FormulaireFrais'
 import type { Commande, Article, Frais } from '@prisma/client'
 
@@ -16,9 +17,6 @@ type CommandeDetail = Commande & { articles: Article[]; frais: Frais[] }
 
 export default function CommandeDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const router = useRouter()
-  const routerRef = useRef(router)
-  routerRef.current = router
   const [commande, setCommande] = useState<CommandeDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -26,6 +24,8 @@ export default function CommandeDetailPage() {
   const [modalFrais, setModalFrais] = useState(false)
   const [editArticle, setEditArticle] = useState<Article | null>(null)
   const [venteArticle, setVenteArticle] = useState<Article | null>(null)
+  const [confirmDeleteArticleId, setConfirmDeleteArticleId] = useState<number | null>(null)
+  const [photosArticleId, setPhotosArticleId] = useState<number | null>(null)
 
   const fetchCommande = useCallback(async () => {
     try {
@@ -45,11 +45,98 @@ export default function CommandeDetailPage() {
   useEffect(() => { fetchCommande() }, [fetchCommande])
 
   const handleDeleteArticle = async (articleId: number) => {
-    if (!confirm('Supprimer cet article ?')) return
+    if (confirmDeleteArticleId !== articleId) {
+      setConfirmDeleteArticleId(articleId)
+      return
+    }
+    setConfirmDeleteArticleId(null)
     const res = await fetch(`/api/articles/${articleId}`, { method: 'DELETE' })
     if (!res.ok) { toast.error('Erreur lors de la suppression'); return }
     toast.success('Article supprimé')
     fetchCommande()
+  }
+
+  const exportPDF = async () => {
+    if (!commande) return
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
+
+    const doc = new jsPDF()
+    const totalAchatLocal = commande.articles.reduce((acc, a) => acc + a.prixAchat, 0)
+    const totalFraisLocal = commande.frais.reduce((acc, f) => acc + f.montant, 0)
+    const totalVentesLocal = commande.articles
+      .filter((a) => a.prixVenteReel)
+      .reduce((acc, a) => acc + (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0), 0)
+    const beneficeLocal = totalVentesLocal - totalAchatLocal - totalFraisLocal
+
+    // En-tête
+    doc.setFontSize(18)
+    doc.setTextColor(40)
+    doc.text(`Commande — ${commande.fournisseur}`, 14, 20)
+    doc.setFontSize(10)
+    doc.setTextColor(120)
+    doc.text(`Date : ${new Date(commande.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`, 14, 28)
+    doc.text(`Statut : ${commande.statut}`, 14, 34)
+    if (commande.tracking) doc.text(`Tracking : ${commande.tracking}`, 14, 40)
+
+    // KPIs
+    const startY = commande.tracking ? 48 : 42
+    doc.setFontSize(10)
+    doc.setTextColor(40)
+    const kpis = [
+      ['Total achat', `${totalAchatLocal.toFixed(2)} €`],
+      ['Total frais', `${totalFraisLocal.toFixed(2)} €`],
+      ['Revenus ventes', `${totalVentesLocal.toFixed(2)} €`],
+      ['Bénéfice', `${beneficeLocal.toFixed(2)} €`],
+    ]
+    autoTable(doc, {
+      startY,
+      head: [],
+      body: kpis,
+      columnStyles: { 0: { cellWidth: 50 }, 1: { halign: 'right' } },
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 2 },
+    })
+
+    // Table articles
+    const afterKpis = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+    doc.setFontSize(12)
+    doc.setTextColor(40)
+    doc.text('Articles', 14, afterKpis)
+    autoTable(doc, {
+      startY: afterKpis + 4,
+      head: [['Marque', 'Modèle', 'État', 'N° série', 'Statut', 'Prix achat', 'Prix vendu', 'Bénéfice']],
+      body: commande.articles.map((a) => {
+        const ben = a.prixVenteReel ? (a.prixVenteReel - (a.fraisVente ?? 0) - a.prixAchat).toFixed(2) + ' €' : '—'
+        return [
+          a.marque, a.modele, a.etat, a.refFournisseur ?? '—', a.statut,
+          `${a.prixAchat.toFixed(2)} €`,
+          a.prixVenteReel ? `${a.prixVenteReel.toFixed(2)} €` : '—',
+          ben,
+        ]
+      }),
+      theme: 'striped',
+      headStyles: { fillColor: [80, 40, 120] },
+      styles: { fontSize: 8 },
+    })
+
+    // Table frais
+    if (commande.frais.length > 0) {
+      const afterArticles = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+      doc.setFontSize(12)
+      doc.setTextColor(40)
+      doc.text('Frais & taxes', 14, afterArticles)
+      autoTable(doc, {
+        startY: afterArticles + 4,
+        head: [['Type', 'Montant', 'Description']],
+        body: commande.frais.map((f) => [f.type, `${f.montant.toFixed(2)} €`, f.description ?? '']),
+        theme: 'striped',
+        headStyles: { fillColor: [80, 40, 120] },
+        styles: { fontSize: 9 },
+      })
+    }
+
+    doc.save(`commande_${commande.fournisseur.replace(/\s+/g, '_')}_${new Date(commande.date).toISOString().split('T')[0]}.pdf`)
   }
 
   const handleDeleteFrais = async (fraisId: number) => {
@@ -136,6 +223,16 @@ export default function CommandeDetailPage() {
             <TrackingWidget numero={commande.tracking} />
           )}
         </div>
+        <button
+          onClick={exportPDF}
+          title="Exporter en PDF"
+          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-white/60 hover:text-white transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span className="hidden sm:inline">PDF</span>
+        </button>
       </div>
 
       {/* KPI cards */}
@@ -195,7 +292,7 @@ export default function CommandeDetailPage() {
                           <p className="font-medium text-white text-sm">{article.marque} {article.modele}</p>
                           {article.refFournisseur && <p className="text-xs text-white/35">{article.refFournisseur}</p>}
                         </div>
-                        <Badge statut={article.statut} />
+                        <Badge statut={article.statut} href={article.lienAnnonce ?? undefined} />
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 text-xs text-white/50">
@@ -226,11 +323,17 @@ export default function CommandeDetailPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button onClick={() => handleDeleteArticle(article.id)} className="p-2 rounded hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          {confirmDeleteArticleId === article.id ? (
+                            <button onClick={() => handleDeleteArticle(article.id)} className="px-2 py-1 rounded bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-medium transition-colors">
+                              Confirmer
+                            </button>
+                          ) : (
+                            <button onClick={() => handleDeleteArticle(article.id)} className="p-2 rounded hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -269,7 +372,7 @@ export default function CommandeDetailPage() {
                             </span>
                           ) : <span className="text-white/20">—</span>}
                         </td>
-                        <td className="px-4 py-3"><Badge statut={article.statut} /></td>
+                        <td className="px-4 py-3"><Badge statut={article.statut} href={article.lienAnnonce ?? undefined} /></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
                             {article.statut !== 'Vendu' && (
@@ -285,16 +388,28 @@ export default function CommandeDetailPage() {
                                 </svg>
                               </button>
                             )}
+                            <button onClick={() => setPhotosArticleId(article.id)} className="p-1.5 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors" title="Photos">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                            </button>
                             <button onClick={() => setEditArticle(article)} className="p-1.5 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors" title="Modifier">
                               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
                             </button>
-                            <button onClick={() => handleDeleteArticle(article.id)} className="p-1.5 rounded hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Supprimer">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
+                            {confirmDeleteArticleId === article.id ? (
+                              <button onClick={() => handleDeleteArticle(article.id)} className="px-2 py-1 rounded bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-medium transition-colors">
+                                Confirmer
+                              </button>
+                            ) : (
+                              <button onClick={() => handleDeleteArticle(article.id)} className="p-1.5 rounded hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Supprimer">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -367,6 +482,23 @@ export default function CommandeDetailPage() {
           <FormulaireFrais commandeId={Number(id)} onClose={() => { setModalFrais(false); fetchCommande() }} />
         </Modal>
       )}
+      {photosArticleId !== null && (() => {
+        const art = commande.articles.find((a) => a.id === photosArticleId)
+        return art ? (
+          <Modal title={`Photos — ${art.marque} ${art.modele}`} onClose={() => setPhotosArticleId(null)}>
+            <PhotosArticle
+              articleId={art.id}
+              photos={(art as { photos?: string[] }).photos ?? []}
+              onUpdate={(photos) => {
+                setCommande((prev) => prev ? {
+                  ...prev,
+                  articles: prev.articles.map((a) => a.id === art.id ? { ...a, photos } as typeof a : a),
+                } : prev)
+              }}
+            />
+          </Modal>
+        ) : null
+      })()}
     </div>
   )
 }

@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { toast } from 'sonner'
 import Modal from '@/components/ui/Modal'
 import FormulaireCommande from '@/components/commandes/FormulaireCommande'
 import ListeCommandes from '@/components/commandes/ListeCommandes'
 import ImportModal from '@/components/ImportModal'
+import ShortcutsHelp from '@/components/ui/ShortcutsHelp'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import type { Commande, Article, Frais } from '@prisma/client'
 
 type CommandeAvecRelations = Commande & {
@@ -16,6 +18,7 @@ type CommandeAvecRelations = Commande & {
 export default function CommandesPage() {
   const [showModal, setShowModal] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
   const [commandes, setCommandes] = useState<CommandeAvecRelations[]>([])
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
@@ -112,6 +115,21 @@ export default function CommandesPage() {
     setExporting(false)
   }
 
+  const shortcutList = useMemo(() => [
+    { key: 'N', label: 'Nouvelle commande' },
+    { key: 'E', label: 'Exporter Excel' },
+    { key: 'I', label: 'Importer Excel' },
+    { key: '?', label: 'Afficher les raccourcis' },
+  ], [])
+
+  useKeyboardShortcuts(useMemo(() => ({
+    'N': () => setShowModal(true),
+    'E': exportExcel,
+    'I': () => setShowImport(true),
+    '?': () => setShowShortcuts(true),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [exportExcel]), !showModal && !showImport && !showShortcuts)
+
   const stats = {
     total: commandes.length,
     enPreparation: commandes.filter((c) => c.statut === 'En préparation').length,
@@ -128,6 +146,13 @@ export default function CommandesPage() {
           <p className="text-sm text-white/40 mt-1">{stats.total} commande{stats.total > 1 ? 's' : ''} au total</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setShowShortcuts(true)}
+            title="Raccourcis clavier (?)"
+            className="hidden sm:flex items-center justify-center w-9 h-9 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/40 hover:text-white/70 transition-colors text-sm font-medium"
+          >
+            ?
+          </button>
           <button
             onClick={() => setShowImport(true)}
             className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium text-white/70 hover:text-white transition-colors"
@@ -180,7 +205,9 @@ export default function CommandesPage() {
             ))}
           </div>
         ) : (
-          <ListeCommandes commandes={commandes} onRefresh={fetchCommandes} />
+          <Suspense>
+            <ListeCommandes commandes={commandes} onRefresh={fetchCommandes} />
+          </Suspense>
         )}
       </div>
 
@@ -200,6 +227,11 @@ export default function CommandesPage() {
           onClose={() => setShowImport(false)}
           onSuccess={() => { fetchCommandes(); setShowImport(false) }}
         />
+      )}
+
+      {/* Modal raccourcis */}
+      {showShortcuts && (
+        <ShortcutsHelp shortcuts={shortcutList} onClose={() => setShowShortcuts(false)} />
       )}
     </div>
   )

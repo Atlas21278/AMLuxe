@@ -21,3 +21,14 @@ export type Plateforme = typeof PLATEFORMES[number]
 // Rôles utilisateurs
 export const ROLES_USER = ['admin', 'viewer'] as const
 export type RoleUser = typeof ROLES_USER[number]
+
+// Devises supportées
+export const DEVISES = ['EUR', 'USD', 'GBP', 'CHF'] as const
+export type Devise = typeof DEVISES[number]
+
+export const DEVISE_SYMBOLS: Record<string, string> = {
+  EUR: '€',
+  USD: '$',
+  GBP: '£',
+  CHF: 'CHF',
+}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
@@ -33,18 +33,31 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 
 export default function ListeCommandes({ commandes, onRefresh }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [editCommande, setEditCommande] = useState<CommandeAvecRelations | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [deleteSelection, setDeleteSelection] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const [search, setSearch] = useState('')
-  const [filtreStatut, setFiltreStatut] = useState('tous')
-  const [dateDebut, setDateDebut] = useState('')
-  const [dateFin, setDateFin] = useState('')
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
+  const [filtreStatut, setFiltreStatut] = useState(() => searchParams.get('statut') ?? 'tous')
+  const [dateDebut, setDateDebut] = useState(() => searchParams.get('from') ?? '')
+  const [dateFin, setDateFin] = useState(() => searchParams.get('to') ?? '')
   const [sortKey, setSortKey] = useState<SortKey>('date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selection, setSelection] = useState<Set<number>>(new Set())
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(() => Number(searchParams.get('page') ?? 1))
+
+  // T-087 — synchroniser les filtres dans l'URL
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (search) params.set('search', search)
+    if (filtreStatut !== 'tous') params.set('statut', filtreStatut)
+    if (dateDebut) params.set('from', dateDebut)
+    if (dateFin) params.set('to', dateFin)
+    if (page > 1) params.set('page', String(page))
+    router.replace(`${pathname}${params.size ? `?${params}` : ''}`, { scroll: false })
+  }, [search, filtreStatut, dateDebut, dateFin, page, pathname, router])
 
   // T-075 — restaurer la position de scroll après navigation arrière
   useEffect(() => {

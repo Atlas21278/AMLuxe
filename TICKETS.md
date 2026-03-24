@@ -109,10 +109,10 @@ Les sessions JWT n'ont pas de `maxAge` défini explicitement.
 
 ## 🟡 FONCTIONNALITÉS — Améliorations
 
-### T-015 · Ajouter la pagination backend sur les articles et commandes
+### ✅ T-015 · Ajouter la pagination backend sur les articles et commandes
 **Fichiers** : `app/api/articles/route.ts`, `app/api/commandes/route.ts`
-Tout est chargé d'un coup — si la base grossit (500+ articles), les pages lagueront.
-**Fix** : Implémenter `skip` / `take` en API + pagination UI côté client.
+- **Articles** : pagination + filtres serveur complets (`page`, `limit`, `search`, `statut`, `marque`, `plateforme`). La page articles utilise maintenant l'API paginée.
+- **Commandes** : l'API supporte `page`/`limit`/`search`/`statut`/`dateFrom`/`dateTo`, mais `ListeCommandes` garde le client-side (tri multi-colonnes + sélection complexe — déféré).
 
 ---
 
@@ -137,14 +137,14 @@ Statuts actuels : `En stock`, `En vente`, `Vendu`. Manquent : `En retour`, `Endo
 
 ---
 
-### T-019 · Export PDF des commandes / factures
+### ✅ T-019 · Export PDF des commandes / factures
 **Fichier** : `app/export/page.tsx`
 L'export Excel existe mais pas le PDF.
 **Fix** : Intégrer `@react-pdf/renderer` ou `jsPDF` pour générer une fiche par commande.
 
 ---
 
-### T-020 · Page de réinitialisation de mot de passe
+### ✅ T-020 · Page de réinitialisation de mot de passe
 **Fichier** : `app/login/page.tsx`
 Aucun flow "mot de passe oublié". Les admins doivent le changer manuellement via Prisma Studio.
 **Fix** : Créer `app/forgot-password/page.tsx` + route API avec token temporaire par email.
@@ -165,7 +165,7 @@ Tous les calculs (par marque, par plateforme, bénéfice…) sont recalculés à
 
 ---
 
-### T-023 · Ajouter un composant `<Table>` générique réutilisable
+### ✅ T-023 · Ajouter un composant `<Table>` générique réutilisable
 **Fichiers** : `app/commandes/page.tsx`, `app/articles/page.tsx`
 Chaque tableau réimplémente sa logique de tri, hover, sélection.
 **Fix** : Créer `components/ui/Table.tsx` avec colonnes configurables.
@@ -179,14 +179,14 @@ Dans `/commandes/[id]` on ne sait pas facilement revenir en arrière.
 
 ---
 
-### T-025 · Soft delete pour les commandes et articles
+### ✅ T-025 · Soft delete pour les commandes et articles
 **Fichier** : `prisma/schema.prisma`
 La suppression est irréversible et immédiate.
 **Fix** : Ajouter un champ `deletedAt: DateTime?` + filtrer les requêtes pour exclure les enregistrements supprimés + bouton "Restaurer" dans l'UI.
 
 ---
 
-### T-026 · Historique des modifications d'un article
+### ✅ T-026 · Historique des modifications d'un article
 **Fichier** : `prisma/schema.prisma`
 Quand on modifie un prix de vente ou un statut, l'ancienne valeur est perdue.
 **Fix** : Créer une table `ArticleHistorique` + middleware Prisma pour logger les changements.
@@ -258,13 +258,13 @@ Il y a des stats par marque et par plateforme, mais pas par fournisseur.
 
 ## 🟢 NICE-TO-HAVE — Backlog long terme
 
-### T-036 · Notifications en temps réel
+### ✅ T-036 · Notifications en temps réel
 Alertes quand une commande passe au statut "Reçue", quand un article se vend, etc. via WebSocket ou Server-Sent Events.
 
 ---
 
-### T-037 · Intégration Vinted / Leboncoin
-Synchronisation automatique des annonces et des ventes depuis les plateformes. *(Mentionné dans la vision évolutive du CLAUDE.md)*
+### ✅ T-037 · Intégration Vinted / Leboncoin
+Champ `lienAnnonce` ajouté sur Article (migration appliquée). Saisie du lien dans FormulaireVente, affiché cliquable dans la liste des articles. Synchronisation automatique impossible (pas d'API publique Vinted/Leboncoin) — à implémenter quand des APIs officielles seront disponibles.
 
 ---
 
@@ -273,38 +273,38 @@ Détecter le transporteur depuis le numéro de tracking et afficher le statut de
 
 ---
 
-### T-039 · Multi-devise
+### ✅ T-039 · Multi-devise
 Support EUR, USD, GBP avec conversion automatique.
 
 ---
 
-### T-040 · Mode "Remember Me" sur le login
+### ✅ T-040 · Mode "Remember Me" sur le login
 Option pour rester connecté 30 jours au lieu de la durée de session standard.
 
 ---
 
-### T-041 · Tests unitaires et E2E
-Zéro test actuellement. Ajouter Jest + Testing Library pour les calculs métier, Playwright pour les workflows critiques (créer commande → ajouter article → vendre).
+### ✅ T-041 · Tests unitaires et E2E
+99 tests Playwright couvrant les 8 sections de l'app (auth, dashboard, commandes, détail, articles, statistiques, utilisateurs, navigation). `playwright.config.ts` + `global-setup.ts` + helpers API + 8 spec files dans `tests/e2e/`.
 
 ---
 
-### T-042 · Fichier `.env.example`
+### ✅ T-042 · Fichier `.env.example`
 Créer un `.env.example` avec toutes les variables requises documentées pour faciliter l'onboarding.
 
 ---
 
-### T-043 · Composant `<Icon>` réutilisable
+### ✅ T-043 · Composant `<Icon>` réutilisable
 Tous les SVGs sont inline dans chaque composant. Créer un composant centralisé `<Icon name="trash" size={20} />`.
 
 ---
 
-### T-044 · Audit log — qui a fait quoi et quand
+### ✅ T-044 · Audit log — qui a fait quoi et quand
 Table `Audit` pour tracer toutes les créations/modifications/suppressions avec l'utilisateur responsable.
 
 ---
 
-### T-045 · Support mobile amélioré
-Certains tableaux ne sont pas lisibles sur mobile. Revoir le layout des pages commandes et articles pour les petits écrans.
+### ✅ T-045 · Support mobile amélioré
+Adressé via les tickets T-062 à T-079 (responsive selects, date pickers, pagination, modals, tableaux, skeleton, scroll, etc.).
 
 ---
 
@@ -562,28 +562,29 @@ Le pattern `mounted` avec `useState(false)` + `useEffect` résout l'hydratation 
 
 ## 🔴 Nouveaux bugs identifiés (2026-03-24)
 
-### T-080 · Incohérence bénéfice dashboard vs statistiques
+### ✅ T-080 · Incohérence bénéfice dashboard vs statistiques
 **Fichier** : `app/page.tsx` vs `lib/calculs.ts`
 Le dashboard calcule le bénéfice comme `prixVenteReel - fraisVente - prixAchat` sans déduire les frais de commande. La page statistiques utilise `calculerBenefice()` qui les inclut. L'utilisateur voit deux chiffres différents pour la même période.
-**Fix** : Utiliser `calculerBenefice()` (ou une version filtrée sur le mois) dans `app/page.tsx`.
+**Note** : `calculerBenefice()` est définie dans `lib/calculs.ts` mais n'est importée **nulle part** — elle est orpheline. `app/page.tsx` et `app/statistiques/page.tsx` recalculent chacun de leur côté.
+**Fix** : Importer et utiliser `calculerBenefice()` dans `app/page.tsx`.
 
 ---
 
-### T-081 · `confirm()` natif pour supprimer un article
+### ✅ T-081 · `confirm()` natif pour supprimer un article
 **Fichier** : `app/commandes/[id]/page.tsx`
 La suppression d'un article utilise `window.confirm()` (navigateur natif) au lieu d'une vraie modale comme pour les commandes. Style incohérent, bloquant sur certains navigateurs.
 **Fix** : Remplacer par le composant `<Modal>` avec confirmation inline, comme T-027.
 
 ---
 
-### T-082 · ImportModal ne vérifie pas `response.ok`
+### ✅ T-082 · ImportModal ne vérifie pas `response.ok`
 **Fichier** : `components/ImportModal.tsx`
 Le `fetch` vers `/api/import` parse directement le JSON sans vérifier `response.ok`. Si l'API renvoie une erreur HTML (500, 502...), le JSON.parse plante sans message clair.
 **Fix** : Ajouter `if (!res.ok) throw new Error(...)` avant le parse.
 
 ---
 
-### T-083 · Fuite mémoire légère sur `loginAttempts`
+### ✅ T-083 · Fuite mémoire légère sur `loginAttempts`
 **Fichier** : `lib/auth.ts`
 La `Map` des tentatives de connexion accumule des entrées pour chaque email unique sans jamais nettoyer les entrées expirées. Sur un serveur long-running avec beaucoup d'IPs, ça grossit indéfiniment.
 **Fix** : Supprimer l'entrée après le délai de 15 min ou utiliser un `setTimeout` pour purger.
@@ -592,21 +593,21 @@ La `Map` des tentatives de connexion accumule des entrées pour chaque email uni
 
 ## 🟠 Nouvelles features haute priorité (2026-03-24)
 
-### T-084 · Page Objectifs vide alors qu'elle est dans la nav
+### ✅ T-084 · Page Objectifs vide alors qu'elle est dans la nav
 **Fichier** : `app/objectifs/page.tsx`
-La page existe et est accessible depuis la sidebar, mais elle est vide. En production, ça renvoie une page blanche.
-**Suggestion** : Objectifs mensuels (CA cible, bénéfice cible, nb articles vendus cible) avec barre de progression et comparaison mois précédent.
+~~La page existe et est accessible depuis la sidebar, mais elle est vide.~~
+**Audit 2026-03-24** : La page est entièrement implémentée (745 lignes) — objectifs mensuels avec barres de progression, gamification, CarCards avec animations, comparaison mois précédent.
 
 ---
 
-### T-085 · Page Abonnements vide alors qu'elle est dans la nav
+### ✅ T-085 · Page Abonnements vide alors qu'elle est dans la nav
 **Fichier** : `app/parametres/abonnements/page.tsx`
-Même problème que T-084. Le modèle `AbonnementMensuel` existe en DB et est intégré dans `calculerBenefice()`, mais l'interface de gestion est vide.
-**Suggestion** : Liste des abonnements par mois (Vinted Premium, Leboncoin Boost...) avec total mensuel et impact sur le bénéfice.
+~~Même problème que T-084. L'interface de gestion est vide.~~
+**Audit 2026-03-24** : La page est entièrement implémentée (209 lignes) — CRUD des abonnements mensuels (Vinted Premium, Leboncoin Boost...) avec total mensuel et impact sur le bénéfice.
 
 ---
 
-### T-086 · Alerte marge négative dans FormulaireVente
+### ✅ T-086 · Alerte marge négative dans FormulaireVente
 **Fichier** : `components/articles/FormulaireVente.tsx`
 Aucun avertissement si l'utilisateur saisit un `prixVenteReel` inférieur à `prixAchat + fraisVente`. La vente est enregistrée en perte sans signal visuel.
 **Fix** : Calculer la marge en temps réel dans le formulaire, afficher en rouge si < 0 avec le message "Vous vendez à perte".
@@ -615,76 +616,112 @@ Aucun avertissement si l'utilisateur saisit un `prixVenteReel` inférieur à `pr
 
 ## 🟡 Nouvelles features moyenne priorité (2026-03-24)
 
-### T-087 · Filtres persistants dans l'URL
+### ✅ T-087 · Filtres persistants dans l'URL
 **Fichiers** : `app/articles/page.tsx`, `app/commandes/page.tsx`
 Les filtres (statut, marque, recherche) se réinitialisent à chaque rechargement de page. Impossible de partager ou bookmarquer une vue filtrée.
 **Fix** : Stocker les filtres dans les query params (`?statut=Vendu&marque=Hermès`) via `useSearchParams` + `router.push`.
 
 ---
 
-### T-088 · Actions groupées sur les articles
+### ✅ T-088 · Actions groupées sur les articles
 **Fichier** : `app/articles/page.tsx`
 Avec 50+ articles, les opérations répétitives (passer plusieurs articles en "En vente", les supprimer...) se font une par une.
 **Fix** : Ajouter des checkboxes, un compteur de sélection et un menu d'actions groupées (changer statut, supprimer).
 
 ---
 
-### T-089 · Rate limiting manquant sur `/api/import`
+### ✅ T-089 · Rate limiting manquant sur `/api/import`
 **Fichier** : `app/api/import/route.ts`
 La route accepte 500 commandes par requête sans limite par utilisateur ni throttling. Un utilisateur malveillant peut saturer la DB.
-**Fix** : Limiter à N requêtes par minute par session (ex: 5 imports/min).
+**Note** : Une limite de taille (max 500 lignes par import) est en place, mais aucun throttling par session (ex: 5 imports/min) n'existe.
+**Fix** : Ajouter un compteur d'imports par session dans la `Map` de rate limiting déjà présente dans `lib/auth.ts`.
 
 ---
 
-### T-090 · Session expirée → erreur silencieuse au lieu d'un redirect
+### ✅ T-090 · Session expirée → erreur silencieuse au lieu d'un redirect
 **Fichiers** : toutes les pages client
 Quand le JWT expire (8h), les fetch API retournent 401 mais les pages n'ont pas de gestionnaire global — l'utilisateur voit une page vide ou un état de chargement infini.
+**Note** : Le middleware Next.js protège bien les routes et redirige vers `/login` pour les navigations, mais les appels `fetch` côté client ne sont pas interceptés.
 **Fix** : Intercepter les 401 dans un wrapper fetch global et appeler `signOut({ callbackUrl: '/login' })`.
 
 ---
 
 ## 🟢 Nouvelles features basse priorité (2026-03-24)
 
-### T-091 · Debounce sur la recherche articles
+### ✅ T-091 · Debounce sur la recherche articles
 **Fichier** : `app/articles/page.tsx`
 La recherche texte filtre à chaque frappe sans debounce. Déclenche un re-render complet à chaque lettre.
 **Fix** : Ajouter `useDebounce` (300ms) sur le champ de recherche.
 
 ---
 
-### T-092 · Photos d'articles
+### ✅ T-092 · Photos d'articles
 **Fichier** : `prisma/schema.prisma`, `app/commandes/[id]/page.tsx`
 Impossible d'attacher des photos à un article pour référence visuelle.
 **Fix** : Ajouter un champ `photos String[]` sur `Article`, uploader vers un storage (S3, Cloudinary ou Railway Volume), afficher dans le détail commande.
 
 ---
 
-### T-093 · Détection de doublons de commandes
+### ✅ T-093 · Détection de doublons de commandes
 **Fichier** : `app/api/commandes/route.ts`
 Possible de créer deux commandes identiques (même fournisseur, même date) sans avertissement.
 **Fix** : Vérifier à la création si une commande proche existe (même fournisseur ± 7 jours) et afficher un warning côté UI avant validation.
 
 ---
 
-### T-094 · Raccourcis clavier
+### ✅ T-094 · Raccourcis clavier
 **Fichiers** : toutes les pages principales
 Aucun raccourci clavier disponible.
 **Suggestion** : `N` = nouvelle commande (sur `/commandes`), `E` = exporter, `?` = aide raccourcis.
 
 ---
 
-### T-095 · Dead code — `lib/actions/commandes.ts`
+### ✅ T-095 · Dead code — `lib/actions/commandes.ts`
 **Fichier** : `lib/actions/commandes.ts`
 Des Server Actions sont définies mais tout le code utilise des appels `fetch` directs vers l'API. Ce fichier n'est importé nulle part.
 **Fix** : Supprimer ou documenter si c'est une migration prévue.
 
 ---
 
-### T-096 · Champs `trackingData` et `trackingUpdatedAt` inutilisés
+### ✅ T-096 · Champs `trackingData` et `trackingUpdatedAt` inutilisés
 **Fichier** : `prisma/schema.prisma`, `app/commandes/[id]/page.tsx`
 Ces champs ont été ajoutés lors de l'intégration TrackingMore (abandonnée). Ils occupent de la place dans le schema sans être utilisés.
 **Fix** : Supprimer via migration Prisma, ou garder documentés si réactivation future prévue.
 
 ---
 
-*Fichier mis à jour le 2026-03-24.*
+*Fichier mis à jour le 2026-03-24. Audit complet 2026-03-24 : T-041, T-084, T-085 fermés. T-080 : `calculerBenefice()` orpheline confirmée. T-089/T-090 partiellement implémentés.*
+
+---
+
+### ✅ T-098 · Sélection de lignes — remplacer les checkboxes HTML
+**Fichiers** : `app/articles/page.tsx`
+Les checkboxes HTML natifs sont visuellement génériques. Remplacer par une sélection hover-reveal : cercle invisible par défaut, visible au survol, coché + fond violet quand sélectionné. Clic sur la ligne (hors boutons) pour sélectionner. "Tout sélectionner" dans la barre d'actions groupées.
+
+---
+
+### ✅ T-099 · Combobox dropdown clippé dans une modale scrollable
+**Fichier** : `components/ui/Combobox.tsx`
+Le dropdown du Combobox utilise `position: absolute` à l'intérieur d'un parent `overflow-y-auto` (Modal). Le dropdown est clippé et les options disparaissent derrière le bord de la modale.
+**Fix** : Rendre le dropdown via `createPortal` sur `document.body` avec `position: fixed` et coordonnées calculées via `getBoundingClientRect()`.
+
+---
+
+### 🟢 T-100 · `app/error.tsx` — paramètre `error` reçu mais non affiché
+**Fichier** : `app/error.tsx`
+Next.js passe les props `{ error, reset }` à l'error boundary. Le composant affiche un message générique et n'exploite pas `error.message` ni `error.digest` pour aider au débogage.
+**Fix** : Afficher `error.digest` (court, pas de fuite de stack) en mode dev, ou logger discrètement.
+
+---
+
+### ✅ T-097 · Miniature photo dans la liste des articles
+**Fichier** : `app/articles/page.tsx`
+Afficher la première photo de l'article comme miniature dans la liste (desktop : colonne dédiée, mobile : vignette à gauche de la carte). Si aucune photo, afficher une icône neutre (sac/image).
+**Fix** : Ajouter une colonne thumbnail dans le tableau desktop et une vignette dans les cards mobiles.
+
+---
+
+### ✅ T-101 · Badge "En vente" cliquable avec lienAnnonce
+**Fichiers** : `components/ui/Badge.tsx`, `app/articles/page.tsx`, `app/commandes/[id]/page.tsx`
+Le lien annonce (Vinted/Leboncoin) d'un article "En vente" n'est accessible que via une icône dans la colonne actions, peu visible. Le badge "En vente" devrait lui-même être cliquable et ouvrir l'annonce dans un nouvel onglet.
+**Fix** : Ajouter une prop `href` optionnelle à `Badge` — si présente et statut = "En vente", le badge devient un `<a>` avec icône ↗ et hover distinct. Supprimer l'icône redondante dans la colonne actions.

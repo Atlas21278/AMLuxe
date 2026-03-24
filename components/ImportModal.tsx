@@ -123,6 +123,10 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ commandes: preview }),
       })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || `Erreur serveur (${res.status})`)
+      }
       const result = await res.json()
       setImportResult(result)
       setPreview(null)

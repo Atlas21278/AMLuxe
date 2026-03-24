@@ -46,14 +46,22 @@ export default function DashboardPage() {
     () => vendusMois.reduce((acc, a) => acc + (a.prixVenteReel ?? 0), 0),
     [vendusMois]
   )
-  const beneficeMois = useMemo(
-    () =>
-      vendusMois.reduce(
-        (acc, a) => acc + (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat,
-        0
-      ),
-    [vendusMois]
-  )
+  const beneficeMois = useMemo(() => {
+    const caTotal = vendusMois.reduce((sum, a) => sum + (a.prixVenteReel ?? 0), 0)
+    const coutAchat = vendusMois.reduce((sum, a) => sum + a.prixAchat, 0)
+    const fraisVente = vendusMois.reduce((sum, a) => sum + (a.fraisVente ?? 0), 0)
+    // Frais de commande dédupliqués (une commande peut avoir plusieurs articles vendus ce mois)
+    const commandeIdsSeen = new Set<number>()
+    let fraisCommande = 0
+    for (const a of vendusMois) {
+      if (!commandeIdsSeen.has(a.commandeId)) {
+        commandeIdsSeen.add(a.commandeId)
+        const cmd = commandes.find((c) => c.id === a.commandeId)
+        fraisCommande += cmd?.frais.reduce((s, f) => s + f.montant, 0) ?? 0
+      }
+    }
+    return caTotal - coutAchat - fraisVente - fraisCommande
+  }, [vendusMois, commandes])
 
   const enStock = useMemo(() => articles.filter((a) => a.statut === 'En stock').length, [articles])
   const enVente = useMemo(() => articles.filter((a) => a.statut === 'En vente').length, [articles])
@@ -132,7 +140,7 @@ export default function DashboardPage() {
           {
             label: 'Bénéfice du mois',
             value: `${beneficeMois.toFixed(0)} €`,
-            sub: 'hors frais commande',
+            sub: 'CA − achats − frais',
             color: beneficeMois >= 0 ? 'text-green-400' : 'text-red-400',
           },
           {

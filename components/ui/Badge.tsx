@@ -1,5 +1,6 @@
 interface BadgeProps {
   statut: string
+  href?: string
 }
 
 const statutConfig: Record<string, { label: string; className: string }> = {
@@ -43,14 +44,35 @@ const statutConfig: Record<string, { label: string; className: string }> = {
   },
 }
 
-export default function Badge({ statut }: BadgeProps) {
+export default function Badge({ statut, href }: BadgeProps) {
   const config = statutConfig[statut] ?? {
     label: statut,
     className: 'bg-white/10 text-white/60 border border-white/20',
   }
 
+  const baseClass = `inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${config.className}`
+
+  if (href && statut === 'En vente') {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className={`${baseClass} hover:brightness-125 transition-[filter] cursor-pointer`}
+        title="Voir l'annonce"
+        data-testid="badge-lien-annonce"
+      >
+        {config.label}
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+      </a>
+    )
+  }
+
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${config.className}`}>
+    <span className={baseClass}>
       {config.label}
     </span>
   )

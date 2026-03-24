@@ -10,6 +10,10 @@ function checkRateLimit(email: string): boolean {
   const now = Date.now()
   const entry = loginAttempts.get(email)
   if (!entry || now > entry.resetAt) {
+    // Purger toutes les entrées expirées pour éviter la fuite mémoire
+    for (const [key, val] of loginAttempts) {
+      if (now > val.resetAt) loginAttempts.delete(key)
+    }
     loginAttempts.set(email, { count: 1, resetAt: now + 15 * 60 * 1000 })
     return true
   }
@@ -29,6 +33,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Mot de passe', type: 'password' },
+        rememberMe: { label: 'Se souvenir de moi', type: 'text' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
@@ -51,17 +56,22 @@ export const authOptions: NextAuthOptions = {
           name: user.nom,
           email: user.email,
           role: user.role,
+          rememberMe: credentials.rememberMe === 'true',
         }
       },
     }),
   ],
-  session: { strategy: 'jwt', maxAge: 8 * 60 * 60 }, // 8 heures
+  session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 }, // 30 jours max
   pages: { signIn: '/login' },
   callbacks: {
     jwt({ token, user }) {
       if (user) {
         token.id = user.id
         token.role = user.role
+        // Sans "remember me" : session limitée à 8 heures
+        if (!user.rememberMe) {
+          token.exp = Math.floor(Date.now() / 1000) + 8 * 60 * 60
+        }
       }
       return token
     },

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import { toast } from 'sonner'
 import type { Article } from '@prisma/client'
 import { PLATEFORMES } from '@/constants/statuts'
@@ -12,11 +12,12 @@ interface Props {
 
 export default function FormulaireVente({ article, onClose }: Props) {
   const [isPending, startTransition] = useTransition()
-  const [mode, setMode] = useState<'vente' | 'vendu'>(article.statut === 'En vente' ? 'vendu' : 'vente')
+  const [mode, setMode] = useState<'vente' | 'vendu'>('vente')
 
   const [form, setForm] = useState({
     prixVente: article.prixVente?.toString() ?? '',
     plateforme: article.plateforme ?? 'Vinted',
+    lienAnnonce: (article as { lienAnnonce?: string }).lienAnnonce ?? '',
     prixVenteReel: article.prixVenteReel?.toString() ?? '',
     fraisVente: article.fraisVente?.toString() ?? '',
     dateVente: article.dateVente
@@ -41,10 +42,12 @@ export default function FormulaireVente({ article, onClose }: Props) {
         data.statut = 'En vente'
         data.prixVente = form.prixVente
         data.plateforme = form.plateforme
+        data.lienAnnonce = form.lienAnnonce || null
       } else {
         data.statut = 'Vendu'
         data.prixVente = form.prixVente || article.prixVente
         data.plateforme = form.plateforme || article.plateforme
+        data.lienAnnonce = form.lienAnnonce || null
         data.prixVenteReel = form.prixVenteReel
         data.fraisVente = form.fraisVente
         data.dateVente = form.dateVente
@@ -64,6 +67,14 @@ export default function FormulaireVente({ article, onClose }: Props) {
     })
   }
 
+  const margePreview = useMemo(() => {
+    if (mode !== 'vendu') return null
+    const venteReel = parseFloat(form.prixVenteReel)
+    const frais = parseFloat(form.fraisVente) || 0
+    if (isNaN(venteReel) || venteReel === 0) return null
+    return venteReel - frais - article.prixAchat
+  }, [mode, form.prixVenteReel, form.fraisVente, article.prixAchat])
+
   const inputClass = "w-full bg-[#0f0f18] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/30"
 
   return (
@@ -73,25 +84,25 @@ export default function FormulaireVente({ article, onClose }: Props) {
         <p className="text-xs text-white/40 mt-0.5">Achat : {article.prixAchat.toFixed(2)} €</p>
       </div>
 
-      {/* Toggle mode — masqué si déjà en vente (on passe direct à "vendu") */}
-      {article.statut !== 'En vente' && (
-        <div className="flex gap-2 mb-5">
-          {(['vente', 'vendu'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                mode === m
-                  ? 'bg-purple-600/20 border-purple-500/40 text-purple-400'
-                  : 'border-white/10 text-white/50 hover:bg-white/5'
-              }`}
-            >
-              {m === 'vente' ? 'Mettre en vente' : 'Marquer comme vendu'}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Toggle mode */}
+      <div className="flex gap-2 mb-5">
+        {(['vente', 'vendu'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              mode === m
+                ? 'bg-purple-600/20 border-purple-500/40 text-purple-400'
+                : 'border-white/10 text-white/50 hover:bg-white/5'
+            }`}
+          >
+            {m === 'vente'
+              ? (article.statut === 'En vente' ? 'Modifier l\'annonce' : 'Mettre en vente')
+              : 'Marquer comme vendu'}
+          </button>
+        ))}
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -112,6 +123,17 @@ export default function FormulaireVente({ article, onClose }: Props) {
               {PLATEFORMES.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-white/60 mb-1.5">Lien de l&apos;annonce</label>
+          <input
+            type="url"
+            placeholder="https://www.vinted.fr/..."
+            value={form.lienAnnonce}
+            onChange={(e) => setForm({ ...form, lienAnnonce: e.target.value })}
+            className={inputClass}
+          />
         </div>
 
         {/* Champs vente finale — uniquement si mode "vendu" */}
@@ -141,6 +163,16 @@ export default function FormulaireVente({ article, onClose }: Props) {
               <label className="block text-xs font-medium text-white/60 mb-1.5">Date de vente</label>
               <input type="date" value={form.dateVente} onChange={(e) => setForm({ ...form, dateVente: e.target.value })} className={inputClass} />
             </div>
+            {margePreview !== null && (
+              <div className={`flex items-center justify-between rounded-lg px-3 py-2.5 ${margePreview < 0 ? 'bg-red-500/10 border border-red-500/20' : 'bg-green-500/10 border border-green-500/20'}`}>
+                <span className={`text-xs font-medium ${margePreview < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  {margePreview < 0 ? '⚠ Vous vendez à perte' : '✓ Marge positive'}
+                </span>
+                <span className={`text-sm font-bold ${margePreview < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  {margePreview >= 0 ? '+' : ''}{margePreview.toFixed(2)} €
+                </span>
+              </div>
+            )}
           </>
         )}
 

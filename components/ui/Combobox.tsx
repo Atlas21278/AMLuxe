@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 export type GroupedOption = { label: string; items: string[] }
 
@@ -20,6 +21,7 @@ export default function Combobox({ options = [], groups, value, onChange, placeh
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const [highlighted, setHighlighted] = useState(0)
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
 
   // Flatten groups into selectable items, keeping track of indices
   const allItems: string[] = groups
@@ -35,7 +37,21 @@ export default function Combobox({ options = [], groups, value, onChange, placeh
   }, [query])
 
   useEffect(() => {
-    if (!open) setQuery('')
+    if (!open) { setQuery(''); return }
+    // T-099 — calculer la position du dropdown via getBoundingClientRect pour éviter le clipping dans overflow:auto
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const dropdownH = 192 // max-h-48 = 12rem ≈ 192px
+      const openUpward = spaceBelow < dropdownH + 8 && rect.top > dropdownH
+      setDropdownStyle({
+        position: 'fixed',
+        top: openUpward ? rect.top - dropdownH - 4 : rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      })
+    }
   }, [open])
 
   useEffect(() => {
@@ -163,13 +179,15 @@ export default function Combobox({ options = [], groups, value, onChange, placeh
         </button>
       </div>
 
-      {open && (
+      {open && typeof document !== 'undefined' && createPortal(
         <ul
           ref={listRef}
-          className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[#1a1a26] border border-white/10 rounded-lg shadow-xl py-1"
+          style={dropdownStyle}
+          className="max-h-48 overflow-y-auto bg-[#1a1a26] border border-white/10 rounded-lg shadow-xl py-1"
         >
           {renderList()}
-        </ul>
+        </ul>,
+        document.body
       )}
     </div>
   )

@@ -8,6 +8,8 @@ import {
   deleteTestCommande,
   createTestArticle,
   createTestFrais,
+  uploadTestPhoto,
+  updateTestArticle,
   TEST_PREFIX,
 } from '../helpers/api'
 
@@ -15,6 +17,7 @@ test.describe('Page Articles', () => {
   let commandeId: number
   let articleId: number
   let articleVenteId: number
+  let articleLienId: number
 
   test.beforeAll(async ({ request }) => {
     commandeId = await createTestCommande(request, `${TEST_PREFIX} Commande Articles`)
@@ -37,6 +40,23 @@ test.describe('Page Articles', () => {
       statut: 'En stock',
     })
     await createTestFrais(request, commandeId)
+
+    // Article "En vente" avec lienAnnonce pour T-101
+    articleLienId = await createTestArticle(request, commandeId, {
+      marque: 'Gucci',
+      modele: 'Marmont Matelassé',
+      prixAchat: 900,
+      etat: 'Bon état',
+      statut: 'En vente',
+    })
+    await updateTestArticle(request, articleLienId, {
+      marque: 'Gucci',
+      modele: 'Marmont Matelassé',
+      prixAchat: 900,
+      etat: 'Bon état',
+      statut: 'En vente',
+      lienAnnonce: 'https://www.vinted.fr/items/test-amluxe-101',
+    })
   })
 
   test.afterAll(async ({ request }) => {
@@ -178,6 +198,85 @@ test.describe('Page Articles', () => {
     await expect(page.getByText(/article|vente/i).last()).toBeVisible({ timeout: 5000 })
   })
 
+  // ─── Miniature et galerie photos ─────────────────────────────────────────
+
+  test('icône placeholder affiché quand aucune photo', async ({ page }) => {
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Birkin')
+    await expect(page.getByText('Birkin 30').first()).toBeVisible()
+
+    // Doit afficher l'icône SVG placeholder (pas d'img dans la cellule photo)
+    const row = page.locator('tr', { hasText: 'Birkin 30' }).first()
+    await expect(row.locator('img')).not.toBeVisible()
+    await expect(row.locator('svg').first()).toBeVisible()
+  })
+
+  test('miniature affichée après upload d\'une photo', async ({ page, request }) => {
+    await uploadTestPhoto(request, articleId)
+
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Birkin')
+    await expect(page.getByText('Birkin 30').first()).toBeVisible()
+
+    // L'img thumbnail doit être présente
+    const row = page.locator('tr', { hasText: 'Birkin 30' }).first()
+    await expect(row.locator('img').first()).toBeVisible()
+  })
+
+  test('clic sur la miniature ouvre la galerie', async ({ page, request }) => {
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Birkin')
+    await expect(page.getByText('Birkin 30').first()).toBeVisible()
+
+    // Cliquer sur le bouton thumbnail
+    const row = page.locator('tr', { hasText: 'Birkin 30' }).first()
+    await row.locator('button').first().click()
+
+    // La galerie s'ouvre : overlay + image + compteur "1 /"
+    await expect(page.locator('text=/1 \\//i')).toBeVisible({ timeout: 3000 })
+    await expect(page.locator('img[alt="Photo 1"]')).toBeVisible()
+  })
+
+  test('fermer la galerie avec Escape', async ({ page }) => {
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Birkin')
+    const row = page.locator('tr', { hasText: 'Birkin 30' }).first()
+    await row.locator('button').first().click()
+    await expect(page.locator('img[alt="Photo 1"]')).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(page.locator('img[alt="Photo 1"]')).not.toBeVisible()
+  })
+
+  test('galerie avec plusieurs photos : navigation flèches et dots', async ({ page, request }) => {
+    // Uploader une 2e photo
+    await uploadTestPhoto(request, articleId)
+
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Birkin')
+    const row = page.locator('tr', { hasText: 'Birkin 30' }).first()
+    await row.locator('button').first().click()
+
+    // Badge compteur doit afficher "1 / 2" (ou plus selon uploads précédents)
+    await expect(page.locator('text=/ \\/ /').first()).toBeVisible()
+
+    // Flèche droite visible
+    await expect(page.locator('button', { hasText: '' }).filter({ has: page.locator('svg path[d*="M9 5"]') })).toBeVisible()
+
+    // Clic flèche droite → photo suivante
+    await page.keyboard.press('ArrowRight')
+    await expect(page.locator('img[alt="Photo 2"]')).toBeVisible({ timeout: 3000 })
+
+    // Clic flèche gauche → retour photo 1
+    await page.keyboard.press('ArrowLeft')
+    await expect(page.locator('img[alt="Photo 1"]')).toBeVisible({ timeout: 3000 })
+  })
+
   // ─── Lien vers la commande ────────────────────────────────────────────────
 
   test('le lien fournisseur redirige vers la commande', async ({ page }) => {
@@ -192,5 +291,48 @@ test.describe('Page Articles', () => {
       await lienCommande.click()
       await expect(page).toHaveURL(/\/commandes\/\d+/)
     }
+  })
+
+  // ─── T-101 · Badge "En vente" cliquable ──────────────────────────────────
+
+  test('badge "En vente" sans lienAnnonce : span non cliquable', async ({ page }) => {
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    // Hermès Birkin 30 est "En stock" — son badge ne doit pas être un lien
+    await page.getByPlaceholder('Rechercher un article...').fill('Birkin')
+    await expect(page.getByText('Birkin 30').first()).toBeVisible()
+    await expect(page.locator('[data-testid="badge-lien-annonce"]')).not.toBeVisible()
+  })
+
+  test('badge "En vente" avec lienAnnonce : lien cliquable avec icône ↗', async ({ page }) => {
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Marmont')
+    await expect(page.getByText('Marmont Matelassé').first()).toBeVisible({ timeout: 8000 })
+
+    const badge = page.locator('[data-testid="badge-lien-annonce"]').first()
+    await expect(badge).toBeVisible()
+    await expect(badge).toHaveAttribute('href', 'https://www.vinted.fr/items/test-amluxe-101')
+    await expect(badge).toHaveAttribute('target', '_blank')
+    // Contient le texte "En vente"
+    await expect(badge).toContainText('En vente')
+  })
+
+  test('badge "En vente" cliquable ouvre l\'annonce dans un nouvel onglet', async ({ page, context }) => {
+    await page.goto('/articles')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder('Rechercher un article...').fill('Marmont')
+    await expect(page.getByText('Marmont Matelassé').first()).toBeVisible({ timeout: 8000 })
+
+    const badge = page.locator('[data-testid="badge-lien-annonce"]').first()
+    await expect(badge).toBeVisible()
+
+    // Vérifier que le clic ouvre un nouvel onglet
+    const [newPage] = await Promise.all([
+      context.waitForEvent('page'),
+      badge.click(),
+    ])
+    await expect(newPage.url()).toContain('vinted.fr/items/test-amluxe-101')
+    await newPage.close()
   })
 })

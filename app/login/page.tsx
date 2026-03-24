@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
   id: i,
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
 
@@ -33,6 +35,7 @@ export default function LoginPage() {
     const result = await signIn('credentials', {
       email,
       password,
+      rememberMe: rememberMe.toString(),
       redirect: false,
     })
 
@@ -145,6 +148,18 @@ export default function LoginPage() {
             </div>
           </div>
 
+          <label className="flex items-center gap-2.5 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border border-white/20 bg-white/5 accent-purple-500 cursor-pointer"
+            />
+            <span className="text-sm text-white/50 group-hover:text-white/70 transition-colors select-none">
+              Se souvenir de moi <span className="text-white/25">(30 jours)</span>
+            </span>
+          </label>
+
           {error && (
             <div className="login-error">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
@@ -155,6 +170,12 @@ export default function LoginPage() {
               {error}
             </div>
           )}
+
+          <div className="flex justify-end -mt-1">
+            <Link href="/mot-de-passe-oublie" className="text-xs text-white/30 hover:text-white/60 transition-colors">
+              Mot de passe oublié ?
+            </Link>
+          </div>
 
           <button type="submit" disabled={loading} className="login-btn">
             {loading ? (

@@ -50,6 +50,15 @@ export async function createTestArticle(
   return data.id as number
 }
 
+export async function updateTestArticle(
+  request: APIRequestContext,
+  id: number,
+  fields: Record<string, unknown>
+): Promise<void> {
+  const res = await request.put(`/api/articles/${id}`, { data: fields })
+  if (!res.ok) throw new Error(`updateTestArticle échouée: ${res.status} ${await res.text()}`)
+}
+
 // ─── Frais ───────────────────────────────────────────────────────────────────
 
 export async function createTestFrais(
@@ -84,4 +93,22 @@ export async function createTestUser(
 
 export async function deleteTestUser(request: APIRequestContext, id: number) {
   await request.delete(`/api/users/${id}`)
+}
+
+// ─── Photos ───────────────────────────────────────────────────────────────────
+
+// PNG 1×1 pixel blanc — image minimale valide pour les tests
+const TINY_PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+
+export async function uploadTestPhoto(request: APIRequestContext, articleId: number): Promise<void> {
+  const res = await request.post(`/api/articles/${articleId}/photos`, {
+    multipart: {
+      file: {
+        name: 'test.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from(TINY_PNG_B64, 'base64'),
+      },
+    },
+  })
+  if (!res.ok) throw new Error(`uploadTestPhoto échouée: ${res.status} ${await res.text()}`)
 }

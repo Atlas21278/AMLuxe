@@ -1,15 +1,48 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
-import { Toaster } from 'sonner'
+import { signOut } from 'next-auth/react'
+import { toast, Toaster } from 'sonner'
 import Sidebar from './Sidebar'
 import NavigationProgress from './ui/NavigationProgress'
+import { useNotifications } from '@/hooks/useNotifications'
+import type { Notification } from '@/hooks/useNotifications'
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false) // mobile
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false) // desktop
+  const isLoggedIn = pathname !== '/login' && pathname !== '/mot-de-passe-oublie'
+
+  const handleNotification = useCallback((notif: Notification) => {
+    const icons: Record<string, string> = {
+      commande_recue: '📦',
+      article_vendu: '🎉',
+    }
+    toast(notif.message, {
+      icon: icons[notif.event] ?? '🔔',
+      duration: 6000,
+    })
+  }, [])
+
+  useNotifications(handleNotification, isLoggedIn)
+
+  // T-090 — intercepter les 401 globalement et rediriger vers /login
+  useEffect(() => {
+    const originalFetch = window.fetch
+    window.fetch = async (...args) => {
+      const res = await originalFetch(...args)
+      const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof Request ? args[0].url : ''
+      if (res.status === 401 && !url.includes('/api/auth') && window.location.pathname !== '/login') {
+        signOut({ callbackUrl: '/login' })
+      }
+      return res
+    }
+    return () => {
+      window.fetch = originalFetch
+    }
+  }, [])
 
   // T-078 — fermer la sidebar mobile automatiquement lors d'un changement de route
   useEffect(() => {

@@ -2,16 +2,55 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { logAudit } from '@/lib/audit'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
 
-  const commandes = await prisma.commande.findMany({
-    include: { articles: true, frais: true },
-    orderBy: { createdAt: 'desc' },
-  })
-  return NextResponse.json(commandes)
+  const { searchParams } = new URL(req.url)
+  const pageParam = searchParams.get('page')
+  const limit = Math.min(Number(searchParams.get('limit') ?? 20), 100)
+  const search = searchParams.get('search')?.trim() ?? ''
+  const statut = searchParams.get('statut') ?? ''
+  const dateFrom = searchParams.get('dateFrom') ?? ''
+  const dateTo = searchParams.get('dateTo') ?? ''
+
+  const where = {
+    deletedAt: null,
+    ...(search ? { fournisseur: { contains: search, mode: 'insensitive' as const } } : {}),
+    ...(statut && statut !== 'tous' ? { statut } : {}),
+    ...(dateFrom || dateTo ? {
+      date: {
+        ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+        ...(dateTo ? { lte: new Date(dateTo + 'T23:59:59') } : {}),
+      },
+    } : {}),
+  }
+
+  // Sans pagination : retour compat (dashboard, stats, etc.)
+  if (!pageParam) {
+    const commandes = await prisma.commande.findMany({
+      where,
+      include: { articles: true, frais: true },
+      orderBy: { createdAt: 'desc' },
+    })
+    return NextResponse.json(commandes)
+  }
+
+  const page = Math.max(1, Number(pageParam))
+  const [data, total] = await Promise.all([
+    prisma.commande.findMany({
+      where,
+      include: { articles: true, frais: true },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.commande.count({ where }),
+  ])
+
+  return NextResponse.json({ data, total })
 }
 
 export async function POST(req: NextRequest) {
@@ -54,5 +93,6 @@ export async function POST(req: NextRequest) {
     },
     include: { articles: true, frais: true },
   })
+  await logAudit('CREATE', 'commande', commande.id, session.user?.email ?? undefined, { fournisseur: commande.fournisseur })
   return NextResponse.json(commande, { status: 201 })
 }

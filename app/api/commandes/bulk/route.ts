@@ -18,9 +18,9 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Aucun ID fourni' }, { status: 400 })
   }
 
-  // Transaction : toutes les suppressions réussissent ou aucune
+  // Soft delete en transaction
   await prisma.$transaction(
-    ids.map((id) => prisma.commande.delete({ where: { id } }))
+    ids.map((id) => prisma.commande.update({ where: { id }, data: { deletedAt: new Date() } }))
   )
 
   return NextResponse.json({ ok: true, supprimees: ids.length })

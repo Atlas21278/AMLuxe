@@ -13,9 +13,8 @@ model Commande {
   date        DateTime  @default(now())
   statut      String    @default("En préparation")
   tracking          String?
-  trackingData      Json?
-  trackingUpdatedAt DateTime?
   notes             String?
+  deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   articles    Article[]
@@ -24,6 +23,7 @@ model Commande {
   @@index([fournisseur])
   @@index([statut])
   @@index([date])
+  @@index([deletedAt])
 }
 
 model Article {
@@ -34,21 +34,39 @@ model Article {
   etat           String
   refFournisseur String?
   statut         String    @default("En stock")
+  devise         String    @default("EUR")
   prixVente      Float?
   plateforme     String?
+  lienAnnonce    String?
+  photos         String[]
   prixVenteReel  Float?
   fraisVente     Float?
   dateVente      DateTime?
   notes          String?
+  deletedAt      DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   commandeId     Int
   commande       Commande  @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  historique     ArticleHistorique[]
 
   @@index([marque])
   @@index([statut])
   @@index([commandeId])
   @@index([plateforme])
+  @@index([deletedAt])
+}
+
+model ArticleHistorique {
+  id        Int      @id @default(autoincrement())
+  articleId Int
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  champ     String
+  ancienne  String?
+  nouvelle  String?
+  createdAt DateTime @default(now())
+
+  @@index([articleId])
 }
 
 model Frais {
@@ -67,6 +85,19 @@ model AbonnementMensuel {
   montant   Float    @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Audit {
+  id        Int      @id @default(autoincrement())
+  action    String   // CREATE | UPDATE | DELETE
+  ressource String   // commande | article | frais | user
+  cible     Int?     // ID de la ressource concernée
+  details   String?  // JSON optionnel avec les données modifiées
+  userEmail String?
+  createdAt DateTime @default(now())
+
+  @@index([ressource])
+  @@index([createdAt])
 }
 
 model Config {
