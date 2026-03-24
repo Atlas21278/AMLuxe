@@ -60,12 +60,16 @@ export default function FormulaireCommande({ commande, fournisseurs = [], onClos
   const [frais, setFrais] = useState<FraisRow[]>([])
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
   const forceCreateRef = useRef(false)
+  const articlesEndRef = useRef<HTMLDivElement>(null)
 
   const updateArticle = (index: number, field: keyof ArticleRow, value: string) => {
     setArticles((prev) => prev.map((a, i) => i === index ? { ...a, [field]: value } : a))
   }
 
-  const ajouterArticle = () => setArticles((prev) => [...prev, articleVide()])
+  const ajouterArticle = () => {
+    setArticles((prev) => [...prev, articleVide()])
+    setTimeout(() => articlesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50)
+  }
 
   const supprimerArticle = (index: number) => {
     if (articles.length === 1) {
@@ -287,6 +291,7 @@ export default function FormulaireCommande({ commande, fournisseurs = [], onClos
               {articles.filter((a) => a.marque.trim() && a.modele.trim()).length} article(s) seront créés
             </p>
           )}
+          <div ref={articlesEndRef} />
         </div>
 
         {/* Section frais */}

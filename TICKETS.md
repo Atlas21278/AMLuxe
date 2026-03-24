@@ -694,6 +694,19 @@ Ces champs ont été ajoutés lors de l'intégration TrackingMore (abandonnée).
 
 ---
 
+### ✅ T-098 · Sélection de lignes — remplacer les checkboxes HTML
+**Fichiers** : `app/articles/page.tsx`
+Les checkboxes HTML natifs sont visuellement génériques. Remplacer par une sélection hover-reveal : cercle invisible par défaut, visible au survol, coché + fond violet quand sélectionné. Clic sur la ligne (hors boutons) pour sélectionner. "Tout sélectionner" dans la barre d'actions groupées.
+
+---
+
+### ✅ T-099 · Combobox dropdown clippé dans une modale scrollable
+**Fichier** : `components/ui/Combobox.tsx`
+Le dropdown du Combobox utilise `position: absolute` à l'intérieur d'un parent `overflow-y-auto` (Modal). Le dropdown est clippé et les options disparaissent derrière le bord de la modale.
+**Fix** : Rendre le dropdown via `createPortal` sur `document.body` avec `position: fixed` et coordonnées calculées via `getBoundingClientRect()`.
+
+---
+
 ### ✅ T-097 · Miniature photo dans la liste des articles
 **Fichier** : `app/articles/page.tsx`
 Afficher la première photo de l'article comme miniature dans la liste (desktop : colonne dédiée, mobile : vignette à gauche de la carte). Si aucune photo, afficher une icône neutre (sac/image).

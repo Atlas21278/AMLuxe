@@ -292,25 +292,34 @@ function ArticlesPageInner() {
                 ? ((article.prixVenteReel - (article.fraisVente ?? 0) - article.prixAchat) / article.prixAchat * 100).toFixed(0)
                 : null
               return (
-                <div key={article.id} className="px-4 py-3.5 active:bg-white/5 transition-colors">
+                <div key={article.id} onClick={() => toggleOne(article.id)} className={`px-4 py-3.5 transition-colors cursor-pointer ${selection.has(article.id) ? 'bg-purple-500/8' : 'active:bg-white/5'}`}>
                   <div className="flex items-start gap-3 mb-1.5">
-                    {article.photos?.length > 0 ? (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setGallery({ photos: article.photos, index: 0, label: `${article.marque} ${article.modele}` }) }}
-                        className="relative w-11 h-11 rounded-xl overflow-hidden border border-white/10 shrink-0 active:scale-95 transition-transform"
-                      >
-                        <img src={article.photos[0]} alt="" className="w-full h-full object-cover" />
-                        {article.photos.length > 1 && (
-                          <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[9px] font-medium rounded px-1 leading-4">
-                            {article.photos.length}
-                          </span>
-                        )}
-                      </button>
-                    ) : (
-                      <div className="w-11 h-11 rounded-xl border border-white/6 bg-white/3 flex items-center justify-center shrink-0">
-                        <PhotoIcon />
-                      </div>
-                    )}
+                    <div className="relative shrink-0">
+                      {selection.has(article.id) && (
+                        <div className="absolute -top-1 -left-1 z-10 w-4 h-4 bg-purple-600 rounded-full border-2 border-[#0f0f13] flex items-center justify-center">
+                          <svg className="w-2 h-2 text-white" viewBox="0 0 10 10" fill="none">
+                            <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                      )}
+                      {article.photos?.length > 0 ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setGallery({ photos: article.photos, index: 0, label: `${article.marque} ${article.modele}` }) }}
+                          className="relative w-11 h-11 rounded-xl overflow-hidden border border-white/10 active:scale-95 transition-transform block"
+                        >
+                          <img src={article.photos[0]} alt="" className="w-full h-full object-cover" />
+                          {article.photos.length > 1 && (
+                            <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[9px] font-medium rounded px-1 leading-4">
+                              {article.photos.length}
+                            </span>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="w-11 h-11 rounded-xl border border-white/6 bg-white/3 flex items-center justify-center">
+                          <PhotoIcon />
+                        </div>
+                      )}
+                    </div>
                     <div className="flex-1 flex items-start justify-between gap-2">
                       <div>
                         <p className="font-medium text-white text-sm">{article.marque} {article.modele}</p>
@@ -363,13 +372,28 @@ function ArticlesPageInner() {
             <thead>
               <tr className="border-b border-white/5">
                 <th className="px-4 py-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={data.length > 0 && data.every((a) => selection.has(a.id))}
-                    ref={(el: HTMLInputElement | null) => { if (el) el.indeterminate = data.some((a) => selection.has(a.id)) && !data.every((a) => selection.has(a.id)) }}
-                    onChange={toggleAll}
-                    className="w-4 h-4 rounded border-white/20 bg-white/5 accent-purple-500 cursor-pointer"
-                  />
+                  <button
+                    type="button"
+                    onClick={toggleAll}
+                    className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition-all ${
+                      data.length > 0 && data.every((a) => selection.has(a.id))
+                        ? 'bg-purple-600 border-purple-600'
+                        : data.some((a) => selection.has(a.id))
+                        ? 'bg-purple-600/40 border-purple-500/60'
+                        : 'border-white/20 hover:border-white/40 bg-transparent'
+                    }`}
+                    style={{ width: 18, height: 18 }}
+                  >
+                    {data.length > 0 && data.every((a) => selection.has(a.id)) ? (
+                      <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="none">
+                        <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    ) : data.some((a) => selection.has(a.id)) ? (
+                      <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="none">
+                        <path d="M2 5h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                      </svg>
+                    ) : null}
+                  </button>
                 </th>
                 <th className="px-4 py-3 w-12" />
                 <th className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider">Article</th>
@@ -387,14 +411,24 @@ function ArticlesPageInner() {
                   ? ((article.prixVenteReel - (article.fraisVente ?? 0) - article.prixAchat) / article.prixAchat * 100).toFixed(0)
                   : null
                 return (
-                  <tr key={article.id} className={`border-b border-white/5 transition-colors ${selection.has(article.id) ? 'bg-purple-500/8 hover:bg-purple-500/12' : 'hover:bg-white/2'}`}>
-                    <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selection.has(article.id)}
-                        onChange={() => toggleOne(article.id)}
-                        className="w-4 h-4 rounded border-white/20 bg-white/5 accent-purple-500 cursor-pointer"
-                      />
+                  <tr key={article.id} className={`group border-b border-white/5 transition-colors ${selection.has(article.id) ? 'bg-purple-500/8 hover:bg-purple-500/12' : 'hover:bg-white/2'}`}>
+                    <td className="px-4 py-3.5" onClick={(e) => { e.stopPropagation(); toggleOne(article.id) }}>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); toggleOne(article.id) }}
+                        className={`flex items-center justify-center rounded border transition-all ${
+                          selection.has(article.id)
+                            ? 'bg-purple-600 border-purple-600 opacity-100'
+                            : 'border-white/20 bg-transparent opacity-0 group-hover:opacity-100 hover:border-white/40'
+                        }`}
+                        style={{ width: 18, height: 18 }}
+                      >
+                        {selection.has(article.id) && (
+                          <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="none">
+                            <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </button>
                     </td>
                     <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                       {article.photos?.length > 0 ? (
