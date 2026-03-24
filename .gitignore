@@ -5,3 +5,8 @@ node_modules
 prisma.config.ts.bak
 tsconfig.tsbuildinfo
 .claude/
+
+# Playwright
+tests/.auth/
+playwright-report/
+test-results/
