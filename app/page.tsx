@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import Badge from '@/components/ui/Badge'
-import { calculerBeneficeArticle, fraisParArticle } from '@/lib/finance'
+import { beneficeArticle } from '@/lib/finance'
 import type { Commande, Article, Frais } from '@prisma/client'
 
 type CommandeAvecDetails = Commande & { articles: Article[]; frais: Frais[] }
@@ -48,19 +48,12 @@ export default function DashboardPage() {
     [vendusMois]
   )
   const beneficeMois = useMemo(() => {
-    // Frais répartis au prorata : chaque article porte sa quote-part des frais de sa commande
-    return vendusMois.reduce((sum, a) => {
-      const cmd = commandes.find((c) => c.id === a.commandeId)
-      const totalFraisCmd = cmd?.frais.reduce((s, f) => s + f.montant, 0) ?? 0
-      const nbArticlesCmd = cmd?.articles.length ?? 1
-      return sum + calculerBeneficeArticle(
-        a.prixVenteReel ?? 0,
-        a.prixAchat,
-        a.fraisVente ?? 0,
-        fraisParArticle(totalFraisCmd, nbArticlesCmd)
-      )
-    }, 0)
-  }, [vendusMois, commandes])
+    // Bénéfice brut : CA − achats − frais vente (frais commande déduits en global dans les stats)
+    return vendusMois.reduce((sum, a) =>
+      sum + beneficeArticle(a.prixVenteReel ?? 0, a.prixAchat, a.fraisVente ?? 0),
+      0
+    )
+  }, [vendusMois])
 
   const enStock = useMemo(() => articles.filter((a) => a.statut === 'En stock').length, [articles])
   const enVente = useMemo(() => articles.filter((a) => a.statut === 'En vente').length, [articles])
@@ -296,15 +289,7 @@ export default function DashboardPage() {
                     <div className="ml-3 text-right shrink-0">
                       <p className="text-sm font-medium text-green-400">
                         {(() => {
-                          const cmd = commandes.find((c) => c.id === a.commandeId)
-                          const totalFraisCmd = cmd?.frais.reduce((s, f) => s + f.montant, 0) ?? 0
-                          const nbArticlesCmd = cmd?.articles.length ?? 1
-                          const ben = calculerBeneficeArticle(
-                            a.prixVenteReel ?? 0,
-                            a.prixAchat,
-                            a.fraisVente ?? 0,
-                            fraisParArticle(totalFraisCmd, nbArticlesCmd)
-                          )
+                          const ben = beneficeArticle(a.prixVenteReel ?? 0, a.prixAchat, a.fraisVente ?? 0)
                           return `${ben >= 0 ? '+' : ''}${ben.toFixed(0)} €`
                         })()}
                       </p>

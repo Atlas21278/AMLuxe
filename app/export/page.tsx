@@ -46,31 +46,26 @@ export default function ExportPage() {
       frais: { montant: number }[]
     }
 
-    // Map commandeId → fraisParArticle (prorata = fraisCommande / nbArticles)
-    const mapFraisExport = new Map<number, number>()
-    for (const c of commandes as CommandeRaw[]) {
-      const total = c.frais.reduce((s, f) => s + f.montant, 0)
-      mapFraisExport.set(c.id, c.articles.length > 0 ? total / c.articles.length : 0)
-    }
-
     const allArticles = articles as ArticleRaw[]
     const vendus = allArticles.filter((a) => a.statut === 'Vendu' && a.prixVenteReel)
     const caTotal = vendus.reduce((acc, a) => acc + (a.prixVenteReel ?? 0), 0)
     const fraisVenteTotal = vendus.reduce((acc, a) => acc + (a.fraisVente ?? 0), 0)
     const coutAchatVendus = vendus.reduce((acc, a) => acc + a.prixAchat, 0)
-    const fraisCommandeVendus = vendus.reduce((acc, a) => acc + (mapFraisExport.get(a.commandeId) ?? 0), 0)
-    const beneficeBrut = caTotal - fraisVenteTotal - coutAchatVendus - fraisCommandeVendus
-    const margeGlobale = caTotal > 0 ? (beneficeBrut / caTotal) * 100 : 0
-    const coutAchatTotal = allArticles.reduce((acc, a) => acc + a.prixAchat, 0)
+    // Bénéfice brut = CA − achats − frais vente (frais commandes déduits séparément)
+    const beneficeBrut = caTotal - fraisVenteTotal - coutAchatVendus
     const totalFraisCommandes = (commandes as CommandeRaw[]).reduce((acc, c) => acc + c.frais.reduce((s, f) => s + f.montant, 0), 0)
+    const beneficeNet = beneficeBrut - totalFraisCommandes
+    const margeGlobale = caTotal > 0 ? (beneficeNet / caTotal) * 100 : 0
+    const coutAchatTotal = allArticles.reduce((acc, a) => acc + a.prixAchat, 0)
 
     const dashboardData = [
       { Indicateur: '── VENTES ──', Valeur: '', Détail: '' },
       { Indicateur: "Chiffre d'affaires total", Valeur: caTotal.toFixed(2) + ' €', Détail: `${vendus.length} articles vendus` },
       { Indicateur: 'Frais de vente (commissions)', Valeur: fraisVenteTotal.toFixed(2) + ' €', Détail: 'Vinted, Leboncoin, etc.' },
       { Indicateur: "Coût d'achat (vendus)", Valeur: coutAchatVendus.toFixed(2) + ' €', Détail: '' },
-      { Indicateur: 'Frais commande (prorata vendus)', Valeur: fraisCommandeVendus.toFixed(2) + ' €', Détail: 'douane/livraison répartis au prorata' },
-      { Indicateur: 'Bénéfice brut', Valeur: beneficeBrut.toFixed(2) + ' €', Détail: 'CA - frais vente - achats - frais commande' },
+      { Indicateur: 'Bénéfice brut', Valeur: beneficeBrut.toFixed(2) + ' €', Détail: 'CA - frais vente - achats' },
+      { Indicateur: 'Frais commandes (douane/livraison)', Valeur: totalFraisCommandes.toFixed(2) + ' €', Détail: 'toutes commandes confondues' },
+      { Indicateur: 'Bénéfice net', Valeur: beneficeNet.toFixed(2) + ' €', Détail: 'Bénéfice brut - frais commandes' },
       { Indicateur: 'Marge globale', Valeur: margeGlobale.toFixed(1) + ' %', Détail: 'sur CA' },
       { Indicateur: '', Valeur: '', Détail: '' },
       { Indicateur: '── STOCK ──', Valeur: '', Détail: '' },
@@ -95,10 +90,9 @@ export default function ExportPage() {
       parMarque[a.marque].nb++
       parMarque[a.marque].prixAchatTotal += a.prixAchat
       if (a.statut === 'Vendu' && a.prixVenteReel) {
-        const quotePart = mapFraisExport.get(a.commandeId) ?? 0
         parMarque[a.marque].nbVendus++
         parMarque[a.marque].caMarque += a.prixVenteReel
-        parMarque[a.marque].beneficeMarque += a.prixVenteReel - (a.fraisVente ?? 0) - a.prixAchat - quotePart
+        parMarque[a.marque].beneficeMarque += a.prixVenteReel - (a.fraisVente ?? 0) - a.prixAchat
       }
     }
     const parMarqueData = Object.values(parMarque)
@@ -118,8 +112,7 @@ export default function ExportPage() {
 
     // ── 3. ARTICLES ─────────────────────────────────────
     const articlesData = allArticles.map((a) => {
-      const quotePart = mapFraisExport.get(a.commandeId) ?? 0
-      const benefice = a.prixVenteReel ? a.prixVenteReel - (a.fraisVente ?? 0) - a.prixAchat - quotePart : null
+      const benefice = a.prixVenteReel ? a.prixVenteReel - (a.fraisVente ?? 0) - a.prixAchat : null
       return {
         Fournisseur: a.commande.fournisseur,
         Marque: a.marque,
