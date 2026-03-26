@@ -5,34 +5,32 @@
  * Tous les specs réutilisent ensuite cette session (storageState).
  */
 import { chromium } from '@playwright/test'
-import fs from 'fs'
+import os from 'os'
 import path from 'path'
 
-export default async function globalSetup() {
-  const authDir = path.join(__dirname, '.auth')
-  if (!fs.existsSync(authDir)) {
-    fs.mkdirSync(authDir, { recursive: true })
-  }
+const AUTH_FILE = path.join(os.tmpdir(), 'amluxe-test-auth.json')
 
+export default async function globalSetup() {
   const browser = await chromium.launch()
   const context = await browser.newContext()
   const page = await context.newPage()
 
   await page.goto('http://localhost:3000/login')
 
-  // Attendre que le formulaire soit prêt (page client-side)
-  await page.waitForSelector('#email', { timeout: 30000 })
+  // Attendre que React soit hydraté (la classe login-card-visible est ajoutée par useEffect)
+  await page.waitForSelector('.login-card-visible', { timeout: 30000 })
 
   await page.fill('#email', process.env.TEST_ADMIN_EMAIL ?? 'admin@amluxe.fr')
   await page.fill('#password', process.env.TEST_ADMIN_PASSWORD ?? 'Admin2024!')
   await page.click('button[type="submit"]')
 
-  // Attendre la redirection après connexion
-  await page.waitForURL('**/commandes', { timeout: 15000 })
+  // Attendre la redirection après connexion (DB Railway peut être lente)
+  await page.waitForURL('**/commandes', { timeout: 30000 })
 
-  // Sauvegarder cookies + localStorage
-  await context.storageState({ path: path.join(authDir, 'user.json') })
+  // Sauvegarder cookies + localStorage dans le répertoire temp OS (hors du projet)
+  // → évite de déclencher le Fast Refresh Next.js pendant les tests
+  await context.storageState({ path: AUTH_FILE })
 
   await browser.close()
-  console.log('✓ Session admin sauvegardée (tests/.auth/user.json)')
+  console.log(`✓ Session admin sauvegardée (${AUTH_FILE})`)
 }

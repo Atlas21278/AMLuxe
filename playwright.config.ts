@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
+import os from 'os'
+import path from 'path'
+
+const AUTH_FILE = path.join(os.tmpdir(), 'amluxe-test-auth.json')
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -24,7 +28,7 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        storageState: 'tests/.auth/user.json',
+        storageState: AUTH_FILE,
         viewport: { width: 1280, height: 800 },
       },
     },

@@ -27,25 +27,26 @@ test.describe('Détail commande', () => {
 
   test('page se charge avec le nom du fournisseur et le breadcrumb', async ({ page }) => {
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     await expect(page.getByRole('heading', { name: `${TEST_PREFIX} Detail Tests` })).toBeVisible({ timeout: 10000 })
-    await expect(page.getByRole('link', { name: 'Commandes' })).toBeVisible()
+    // Breadcrumb dans main (pas le lien sidebar)
+    await expect(page.getByRole('main').getByRole('link', { name: 'Commandes' })).toBeVisible()
     await expect(page.getByText('Total achat')).toBeVisible()
-    await expect(page.getByText('Frais')).toBeVisible()
-    await expect(page.getByText('Bénéfice')).toBeVisible()
+    await expect(page.getByText('Frais', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('Bénéfice', { exact: true }).first()).toBeVisible()
   })
 
   test('affiche les sections Articles et Frais & taxes', async ({ page }) => {
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await expect(page.getByRole('heading', { name: 'Articles' })).toBeVisible({ timeout: 8000 })
     await expect(page.getByRole('heading', { name: 'Frais & taxes' })).toBeVisible()
   })
 
   test('état vide : "Aucun article" et "Aucun frais" affichés', async ({ page }) => {
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await expect(page.getByText('Aucun article')).toBeVisible({ timeout: 8000 })
     await expect(page.getByText('Aucun frais')).toBeVisible()
   })
@@ -54,7 +55,7 @@ test.describe('Détail commande', () => {
 
   test('ajouter un article via le formulaire', async ({ page }) => {
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Ouvrir le modal d'ajout d'article
     const btnAjouter = page.locator('[aria-label="Ajouter"], button').filter({ hasText: 'Ajouter' }).first()
@@ -64,14 +65,15 @@ test.describe('Détail commande', () => {
     await expect(page.getByText('Ajouter un article')).toBeVisible()
 
     // Remplir le formulaire (Combobox pour marque)
+    // Le dropdown Combobox est rendu via createPortal dans document.body (hors dialog)
     const marqueInput = page.getByRole('dialog').locator('input').nth(0)
     await marqueInput.fill('Chanel')
-    await page.getByRole('dialog').getByText('Chanel').first().click()
+    await marqueInput.press('Enter')  // Sélectionne le premier résultat filtré
 
     // Modèle
     const modeleInput = page.getByRole('dialog').locator('input').nth(1)
     await modeleInput.fill('Boy Bag Small')
-    await page.getByRole('dialog').getByText('Boy Bag Small').first().click()
+    await modeleInput.press('Enter')
 
     // Prix d'achat
     await page.getByRole('dialog').locator('input[type="number"]').first().fill('800')
@@ -82,9 +84,9 @@ test.describe('Détail commande', () => {
     // Modal fermé
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 8000 })
 
-    // L'article apparaît dans le tableau
-    await expect(page.getByText('Chanel')).toBeVisible({ timeout: 8000 })
-    await expect(page.getByText('Boy Bag Small')).toBeVisible()
+    // L'article apparaît dans le tableau (table = desktop, .first() évite le mobile card)
+    await expect(page.locator('table').getByText('Chanel').first()).toBeVisible({ timeout: 8000 })
+    await expect(page.locator('table').getByText('Boy Bag Small').first()).toBeVisible()
   })
 
   // ─── KPIs mis à jour après ajout article ─────────────────────────────────
@@ -94,7 +96,7 @@ test.describe('Détail commande', () => {
     await createTestArticle(page.request, commandeId, { prixAchat: 300 })
 
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Le total achat est supérieur à 0
     const totalAchat = page.getByText('Total achat').locator('~ *').first()
@@ -106,7 +108,7 @@ test.describe('Détail commande', () => {
   test('alerte "Ajoutez les frais" visible quand des articles existent sans frais', async ({ page }) => {
     await createTestArticle(page.request, commandeId)
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await expect(page.getByText(/frais & taxes avant de pouvoir/i)).toBeVisible({ timeout: 8000 })
   })
 
@@ -114,14 +116,14 @@ test.describe('Détail commande', () => {
 
   test('ajouter des frais via le formulaire', async ({ page }) => {
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Bouton Ajouter dans la section Frais
     const boutonsFrais = page.getByRole('heading', { name: 'Frais & taxes' }).locator('..').getByRole('button', { name: 'Ajouter' })
     await boutonsFrais.click()
 
     await expect(page.getByRole('dialog')).toBeVisible()
-    await expect(page.getByText('Ajouter des frais')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Ajouter des frais' })).toBeVisible()
 
     // Remplir le montant
     await page.getByRole('dialog').locator('input[type="number"]').fill('50')
@@ -131,8 +133,8 @@ test.describe('Détail commande', () => {
 
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 8000 })
 
-    // Le frais apparaît (montant 50.00 €)
-    await expect(page.getByText('50.00 €')).toBeVisible({ timeout: 8000 })
+    // Le frais apparaît (montant 50.00 €) — .first() car plusieurs frais peuvent exister
+    await expect(page.getByText('50.00 €').first()).toBeVisible({ timeout: 8000 })
   })
 
   // ─── Alerte frais disparaît après ajout ───────────────────────────────────
@@ -142,7 +144,7 @@ test.describe('Détail commande', () => {
     await createTestFrais(page.request, commandeId)
 
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await expect(page.getByText(/frais & taxes avant de pouvoir/i)).not.toBeVisible()
   })
 
@@ -158,7 +160,7 @@ test.describe('Détail commande', () => {
     await createTestFrais(page.request, commandeId)
 
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Chercher le bouton de vente (icône €) sur un article "En stock"
     const boutonVente = page.locator('button[title="Vendre"]').first()
@@ -171,8 +173,8 @@ test.describe('Détail commande', () => {
     // Remplir le prix de vente réel
     await page.getByRole('dialog').locator('input[type="number"]').first().fill('700')
 
-    // Soumettre
-    await page.getByRole('dialog').getByRole('button', { name: /enregistrer|vendre|valider/i }).click()
+    // Soumettre — bouton "Confirmer" dans FormulaireVente
+    await page.getByRole('dialog').getByRole('button', { name: /enregistrer|vendre|valider|confirmer/i }).click()
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 8000 })
   })
 
@@ -180,17 +182,24 @@ test.describe('Détail commande', () => {
 
   test('saisir un numéro de tracking affiche le widget transporteur', async ({ page }) => {
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Ouvrir le formulaire d'édition de la commande
     // Le tracking est sur la page détail mais modifiable via le formulaire commande
     // On le fait via l'API pour tester l'affichage du widget
+    // PUT requiert fournisseur + date + statut — récupérer d'abord les données actuelles
+    const commandeData = await (await page.request.get(`/api/commandes/${commandeId}`)).json()
     await page.request.put(`/api/commandes/${commandeId}`, {
-      data: { tracking: '1Z999AA10123456784' }, // format UPS
+      data: {
+        fournisseur: commandeData.fournisseur,
+        date: commandeData.date,
+        statut: commandeData.statut,
+        tracking: '1Z999AA10123456784', // format UPS
+      },
     })
 
     await page.reload()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Le widget TrackingWidget devrait afficher le transporteur détecté
     await expect(page.getByText('UPS', { exact: false })).toBeVisible({ timeout: 8000 })
@@ -206,15 +215,15 @@ test.describe('Détail commande', () => {
     })
 
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
-    // Accepter automatiquement la boîte de dialogue confirm()
-    page.on('dialog', (dialog) => dialog.accept())
-
-    // Trouver le bouton supprimer (title="Supprimer") dans le tableau articles
-    const rowDior = page.locator('tr').filter({ hasText: 'Dior' })
+    // La suppression utilise un double-clic inline (pas window.confirm)
+    // 1er clic : passe en mode confirmation (bouton "Confirmer" apparaît)
+    // 2ème clic : confirme la suppression
+    const rowDior = page.locator('table tr').filter({ hasText: 'Dior' })
     await expect(rowDior).toBeVisible({ timeout: 8000 })
     await rowDior.locator('button[title="Supprimer"]').click()
+    await rowDior.getByRole('button', { name: 'Confirmer' }).click()
 
     await expect(page.getByText('Article supprimé')).toBeVisible({ timeout: 5000 })
   })
@@ -225,7 +234,7 @@ test.describe('Détail commande', () => {
     const fraisId = await createTestFrais(page.request, commandeId)
 
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Le bouton × est dans la section frais (SVG X)
     const fraisSection = page.getByRole('heading', { name: 'Frais & taxes' }).locator('../..')
@@ -233,14 +242,14 @@ test.describe('Détail commande', () => {
     await btnSupprFrais.click()
 
     // Toast de succès ou rafraîchissement
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
   })
 
   // ─── Retour navigation ────────────────────────────────────────────────────
 
   test('le lien retour ← ramène à /commandes', async ({ page }) => {
     await page.goto(`/commandes/${commandeId}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.getByRole('link', { name: 'Commandes' }).first().click()
     await expect(page).toHaveURL('/commandes')
   })
@@ -249,7 +258,7 @@ test.describe('Détail commande', () => {
 
   test('une commande inexistante affiche le message d\'erreur', async ({ page }) => {
     await page.goto('/commandes/999999999')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await expect(page.getByRole('button', { name: 'Réessayer' })).toBeVisible({ timeout: 8000 })
     await expect(page.getByRole('link', { name: 'Retour aux commandes' })).toBeVisible()
   })

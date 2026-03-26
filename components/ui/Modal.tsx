@@ -41,7 +41,7 @@ export default function Modal({ title, onClose, children, footer, size = 'md' }:
 
   const content = (
     // T-066 — padding réduit sur mobile (p-3 au lieu de p-6)
-    <div className="fixed inset-0 z-50 w-screen h-screen flex items-end sm:items-center justify-center p-0 sm:p-6">
+    <div role="dialog" aria-modal="true" aria-labelledby="modal-title" className="fixed inset-0 z-50 w-screen h-screen flex items-end sm:items-center justify-center p-0 sm:p-6">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -53,7 +53,7 @@ export default function Modal({ title, onClose, children, footer, size = 'md' }:
 
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/8">
-          <h2 className="text-base font-semibold text-white">{title}</h2>
+          <h2 id="modal-title" className="text-base font-semibold text-white">{title}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors"

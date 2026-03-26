@@ -335,7 +335,7 @@ export default function UtilisateursPage() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative bg-[#13131c] border border-white/8 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div role="dialog" aria-modal="true" className="relative bg-[#13131c] border border-white/8 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <h2 className="text-lg font-semibold text-white mb-5">Nouvel utilisateur</h2>
 
             <form onSubmit={handleCreate} className="space-y-4">

@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
   const commande = await prisma.commande.create({
     data: {
       fournisseur: body.fournisseur,
-      date: new Date(body.date),
+      date: body.date ? new Date(body.date) : new Date(),
       statut: body.statut,
       tracking: body.tracking || null,
       notes: body.notes || null,

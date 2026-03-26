@@ -23,7 +23,7 @@ test.describe('Gestion utilisateurs', () => {
 
   test('page se charge avec le titre Utilisateurs', async ({ page }) => {
     await page.goto('/parametres/utilisateurs')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await expect(page.getByRole('heading', { name: /utilisateurs/i })).toBeVisible({ timeout: 8000 })
   })
 
@@ -34,13 +34,13 @@ test.describe('Gestion utilisateurs', () => {
 
   test('l\'utilisateur admin@amluxe.fr est visible dans la liste', async ({ page }) => {
     await page.goto('/parametres/utilisateurs')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await expect(page.getByText('admin@amluxe.fr')).toBeVisible({ timeout: 8000 })
   })
 
   test('l\'utilisateur de test est visible dans la liste', async ({ page }) => {
     await page.goto('/parametres/utilisateurs')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await expect(page.getByText(testUserEmail)).toBeVisible({ timeout: 8000 })
   })
 
@@ -48,7 +48,7 @@ test.describe('Gestion utilisateurs', () => {
 
   test('créer un utilisateur via le formulaire', async ({ page }) => {
     await page.goto('/parametres/utilisateurs')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     await page.getByRole('button', { name: /ajouter|nouvel utilisateur/i }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
@@ -77,7 +77,7 @@ test.describe('Gestion utilisateurs', () => {
 
   test('erreur si email déjà existant', async ({ page }) => {
     await page.goto('/parametres/utilisateurs')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     await page.getByRole('button', { name: /ajouter|nouvel utilisateur/i }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
@@ -96,7 +96,7 @@ test.describe('Gestion utilisateurs', () => {
 
   test('toggle actif/inactif sur un utilisateur', async ({ page }) => {
     await page.goto('/parametres/utilisateurs')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Trouver la ligne de l'utilisateur test
     const row = page.locator('tr, [role="row"]').filter({ hasText: testUserEmail })
@@ -106,7 +106,7 @@ test.describe('Gestion utilisateurs', () => {
     const toggle = row.locator('input[type="checkbox"], button').filter({ hasText: /actif|inactif/ }).first()
     if (await toggle.isVisible()) {
       await toggle.click()
-      await page.waitForLoadState('networkidle')
+      await page.waitForLoadState('domcontentloaded')
       // Pas d'erreur → toggle fonctionne
     }
   })
@@ -115,7 +115,7 @@ test.describe('Gestion utilisateurs', () => {
 
   test('le bouton "Changer le mot de passe" ouvre un modal', async ({ page }) => {
     await page.goto('/parametres/utilisateurs')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     const row = page.locator('tr').filter({ hasText: testUserEmail })
     const btnPassword = row.getByRole('button', { name: /mot de passe|password/i })
@@ -133,7 +133,7 @@ test.describe('Gestion utilisateurs', () => {
     const userToDelete = await createTestUser(page.request)
 
     await page.goto('/parametres/utilisateurs')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     await expect(page.getByText(userToDelete.email)).toBeVisible({ timeout: 8000 })
 
@@ -153,7 +153,7 @@ test.describe('Gestion utilisateurs', () => {
 
   test('impossible de supprimer son propre compte', async ({ page }) => {
     await page.goto('/parametres/utilisateurs')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // La ligne admin ne doit pas avoir de bouton supprimer actif
     const adminRow = page.locator('tr').filter({ hasText: 'admin@amluxe.fr' })
