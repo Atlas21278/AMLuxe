@@ -8,7 +8,7 @@ test.describe('Dashboard', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
     // Attendre que la page soit chargée (skeleton → contenu)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
   })
 
   test('page se charge sans erreur', async ({ page }) => {
@@ -52,6 +52,8 @@ test.describe('Dashboard', () => {
   })
 
   test('logo AMLuxe visible dans la sidebar', async ({ page }) => {
-    await expect(page.getByText('AMLuxe').first()).toBeVisible()
+    // Le logo AM dans la sidebar visible (desktop) — toujours présent réduit ou non
+    const visibleAside = page.locator('aside').filter({ visible: true }).first()
+    await expect(visibleAside.locator('.bg-purple-600').filter({ hasText: 'AM' })).toBeVisible()
   })
 })

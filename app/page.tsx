@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import Badge from '@/components/ui/Badge'
+import { beneficeArticle } from '@/lib/finance'
 import type { Commande, Article, Frais } from '@prisma/client'
 
 type CommandeAvecDetails = Commande & { articles: Article[]; frais: Frais[] }
@@ -47,21 +48,12 @@ export default function DashboardPage() {
     [vendusMois]
   )
   const beneficeMois = useMemo(() => {
-    const caTotal = vendusMois.reduce((sum, a) => sum + (a.prixVenteReel ?? 0), 0)
-    const coutAchat = vendusMois.reduce((sum, a) => sum + a.prixAchat, 0)
-    const fraisVente = vendusMois.reduce((sum, a) => sum + (a.fraisVente ?? 0), 0)
-    // Frais de commande dédupliqués (une commande peut avoir plusieurs articles vendus ce mois)
-    const commandeIdsSeen = new Set<number>()
-    let fraisCommande = 0
-    for (const a of vendusMois) {
-      if (!commandeIdsSeen.has(a.commandeId)) {
-        commandeIdsSeen.add(a.commandeId)
-        const cmd = commandes.find((c) => c.id === a.commandeId)
-        fraisCommande += cmd?.frais.reduce((s, f) => s + f.montant, 0) ?? 0
-      }
-    }
-    return caTotal - coutAchat - fraisVente - fraisCommande
-  }, [vendusMois, commandes])
+    // Bénéfice brut : CA − achats − frais vente (frais commande déduits en global dans les stats)
+    return vendusMois.reduce((sum, a) =>
+      sum + beneficeArticle(a.prixVenteReel ?? 0, a.prixAchat, a.fraisVente ?? 0),
+      0
+    )
+  }, [vendusMois])
 
   const enStock = useMemo(() => articles.filter((a) => a.statut === 'En stock').length, [articles])
   const enVente = useMemo(() => articles.filter((a) => a.statut === 'En vente').length, [articles])
@@ -296,7 +288,10 @@ export default function DashboardPage() {
                     </div>
                     <div className="ml-3 text-right shrink-0">
                       <p className="text-sm font-medium text-green-400">
-                        +{((a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat).toFixed(0)} €
+                        {(() => {
+                          const ben = beneficeArticle(a.prixVenteReel ?? 0, a.prixAchat, a.fraisVente ?? 0)
+                          return `${ben >= 0 ? '+' : ''}${ben.toFixed(0)} €`
+                        })()}
                       </p>
                       <p className="text-xs text-white/30">{a.plateforme ?? ''}</p>
                     </div>

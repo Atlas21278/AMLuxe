@@ -707,7 +707,7 @@ Le dropdown du Combobox utilise `position: absolute` à l'intérieur d'un parent
 
 ---
 
-### 🟢 T-100 · `app/error.tsx` — paramètre `error` reçu mais non affiché
+### ✅ T-100 · `app/error.tsx` — paramètre `error` reçu mais non affiché
 **Fichier** : `app/error.tsx`
 Next.js passe les props `{ error, reset }` à l'error boundary. Le composant affiche un message générique et n'exploite pas `error.message` ni `error.digest` pour aider au débogage.
 **Fix** : Afficher `error.digest` (court, pas de fuite de stack) en mode dev, ou logger discrètement.
@@ -725,3 +725,169 @@ Afficher la première photo de l'article comme miniature dans la liste (desktop 
 **Fichiers** : `components/ui/Badge.tsx`, `app/articles/page.tsx`, `app/commandes/[id]/page.tsx`
 Le lien annonce (Vinted/Leboncoin) d'un article "En vente" n'est accessible que via une icône dans la colonne actions, peu visible. Le badge "En vente" devrait lui-même être cliquable et ouvrir l'annonce dans un nouvel onglet.
 **Fix** : Ajouter une prop `href` optionnelle à `Badge` — si présente et statut = "En vente", le badge devient un `<a>` avec icône ↗ et hover distinct. Supprimer l'icône redondante dans la colonne actions.
+
+---
+
+## 🔴 Infrastructure critique (2026-03-26)
+
+### T-102 · Photos articles stockées en base64 dans PostgreSQL
+**Fichier** : `app/api/articles/[id]/photos/route.ts`, `components/articles/PhotosArticle.tsx`
+Les photos sont converties en base64 et stockées directement dans le champ `photos String[]` de la table `Article`. Chaque photo (max 2 Mo) est encodée en ~2.7 Mo de texte en DB. Avec 6 photos par article, une seule commande peut ajouter 16 Mo dans PostgreSQL. La DB grossit vite, les requêtes GET /api/articles retournent des Mo de données inutiles si on ne veut pas les photos.
+**Fix** : Migrer vers Uploadthing (uploadthing.com) — upload direct depuis le client vers le CDN, stocker l'URL HTTPS dans `photos[]` à la place du base64. Les photos existantes (data: URLs) continuent d'afficher normalement. Ajouter `UPLOADTHING_TOKEN` dans les variables Railway.
+
+---
+
+### T-103 · Reset mot de passe non implémenté
+**Fichier** : `app/mot-de-passe-oublie/page.tsx`, `app/api/` (manquant)
+La page `/mot-de-passe-oublie` existe et est accessible depuis le login, mais aucun endpoint API n'est branché derrière. Cliquer "Envoyer" ne fait rien.
+**Fix** : Implémenter le flow complet avec Resend (resend.com) : 1) `POST /api/auth/forgot-password` génère un token temporaire (1h) stocké en DB dans la table `Config`, 2) envoie un email avec le lien, 3) `POST /api/auth/reset-password` vérifie le token et met à jour le mot de passe. Ajouter `RESEND_API_KEY` dans les variables Railway.
+
+---
+
+## 🟠 Monitoring & Outils (2026-03-26)
+
+### T-104 · Aucun monitoring des erreurs en production
+**Impact** : Les erreurs JS/API en prod sont invisibles — on ne les découvre que quand un utilisateur signale un problème. `error.digest` (T-100) donne un ID mais sans système pour retrouver l'erreur correspondante.
+**Fix** : Intégrer Sentry (`@sentry/nextjs`) — capture automatique des erreurs client et serveur avec stack trace complète. Gratuit jusqu'à 5k events/mois. Ajouter `SENTRY_DSN` dans les variables Railway. Setup : `npx @sentry/wizard@latest -i nextjs`.
+
+---
+
+### T-105 · MCP PostgreSQL pour Claude Code
+**Impact** : Claude ne peut pas interroger la base de données directement — pour débugger des données ou vérifier des stats, il faut passer par le dashboard Railway ou Prisma Studio.
+**Fix** : Installer le MCP server PostgreSQL dans Claude Code : `claude mcp add postgres -e DATABASE_URL="<prod_public_url>"`. Permet à Claude de faire des SELECT, inspecter le schéma, compter des enregistrements directement depuis le chat.
+
+---
+
+### T-106 · MCP GitHub pour Claude Code
+**Impact** : Claude ne peut pas créer des PRs, des issues ou lire les diffs GitHub directement — le workflow develop → main est manuel.
+**Fix** : Installer le MCP server GitHub dans Claude Code avec un token personnel : `claude mcp add github -e GITHUB_TOKEN="<token>"`. Permet à Claude de créer des PRs, issues, lire les commits et automatiser le merge develop → main.
+
+---
+
+### ✅ T-107 · NEXTAUTH_SECRET faible en production
+**Fichier** : Variable d'environnement Railway
+La valeur `amluxe-secret-key-2024-super-secure` était prévisible — un attaquant connaissant ce secret peut forger des tokens JWT et se connecter sans mot de passe.
+**Fix appliqué** : Remplacé par une clé aléatoire 256 bits via `crypto.randomBytes(32).toString('base64')`, mis à jour directement sur Railway via CLI.
+
+---
+
+---
+
+## 🟠 Performance (2026-03-26)
+
+### T-108 · GET /api/articles retourne les photos base64 inutilement
+**Fichier** : `app/api/articles/route.ts`
+La liste des articles retourne le champ `photos String[]` (base64) dans chaque article, même sur la page liste où les photos ne sont jamais affichées. Avec 6 photos × 2 Mo par article, une page de 20 articles peut peser 240 Mo de données inutiles.
+**Fix** : Exclure `photos` du `select` Prisma dans le GET liste (`photos: false`). Ne les charger que dans le GET détail (`/api/articles/[id]`) et sur la page commande détail.
+
+---
+
+### T-109 · Pas de cache client — rechargement complet à chaque navigation
+**Fichiers** : toutes les pages (`app/commandes/page.tsx`, `app/articles/page.tsx`, etc.)
+Chaque navigation vers une page recharge toutes les données depuis la DB via `fetch`. Retour arrière après consultation d'un détail = nouveau chargement complet.
+**Fix** : Intégrer SWR ou TanStack Query pour mettre en cache les réponses API côté client. Priorité sur les pages les plus consultées (commandes, articles).
+
+---
+
+### T-110 · Prisma 7 disponible (migration majeure)
+**Fichier** : `package.json`, `prisma/schema.prisma`
+Prisma est en version 6.19.2, la version 7.5.0 est disponible. C'est une migration majeure (breaking changes sur les types, les relations, etc.).
+**Fix** : Suivre le guide officiel `https://pris.ly/d/major-version-upgrade`. À faire sur une branche dédiée avec tests complets avant merge.
+
+---
+
+## 🔴 Bug critique (2026-03-26)
+
+### T-111 · calculerBenefice() orpheline — chiffres incohérents dashboard vs stats
+**Fichiers** : `lib/calculs.ts`, `app/page.tsx`, `app/statistiques/page.tsx`
+`calculerBenefice()` est définie dans `lib/calculs.ts` mais n'est importée **nulle part**. Le dashboard (`app/page.tsx`) calcule le bénéfice comme `prixVenteReel - fraisVente - prixAchat` sans déduire les frais de commande. La page stats a sa propre formule. L'utilisateur voit deux chiffres différents pour la même période.
+**Fix** : Importer et utiliser `calculerBenefice()` depuis `lib/calculs.ts` dans `app/page.tsx` et `app/statistiques/page.tsx`. Supprimer les calculs inline dupliqués.
+
+---
+
+## 🟠 Business / Fonctionnel (2026-03-26)
+
+### T-112 · Frais commande mal répartis sur les articles vendus partiellement
+**Fichier** : `app/statistiques/page.tsx`, `app/commandes/[id]/page.tsx`
+Les frais de commande (douane, livraison) sont divisés également entre tous les articles de la commande pour calculer la marge unitaire. Si une commande a 3 articles et que 2 sont vendus, le calcul impute des frais sur l'article encore en stock — ce qui fausse la marge réelle des articles vendus.
+**Fix** : Ne répartir les frais que sur les articles vendus au moment du calcul. Ou ajouter une option pour affecter manuellement les frais par article.
+
+---
+
+### T-113 · Pas de comparaison de période dans les statistiques
+**Fichier** : `app/statistiques/page.tsx`
+Les stats affichent toujours la totalité des données (all-time). Impossible de savoir si le business progresse — pas de comparaison ce mois vs mois précédent, pas de filtre par période.
+**Fix** : Ajouter un sélecteur de période (ce mois / 3 mois / 6 mois / cette année / tout) qui filtre les données. Afficher la variation % vs période précédente sur chaque KPI card (↑ +12% vs mois dernier).
+
+---
+
+### T-114 · Pas de duplication de commande
+**Fichier** : `app/commandes/page.tsx`, `components/commandes/ListeCommandes.tsx`
+Pour les fournisseurs récurrents (même structure de commande), l'utilisateur doit tout ressaisir à chaque fois.
+**Fix** : Ajouter un bouton "Dupliquer" sur chaque commande qui pré-remplit le formulaire de création avec les mêmes articles (sans prix réel, statut reset à "En stock") et le même fournisseur.
+
+---
+
+### T-115 · Impossible de déplacer un article vers une autre commande
+**Fichier** : `app/api/articles/[id]/route.ts`, `app/commandes/[id]/page.tsx`
+Si un article est saisi dans la mauvaise commande, il n'y a aucun moyen de le corriger depuis l'UI — il faut supprimer et recréer.
+**Fix** : Ajouter un bouton "Déplacer" dans le formulaire d'édition article qui ouvre un select des commandes disponibles et met à jour le `commandeId`.
+
+---
+
+### T-116 · Export PDF sans photos articles
+**Fichier** : `app/commandes/[id]/page.tsx` (export PDF jsPDF)
+Le PDF généré par commande contient les KPIs et le tableau des articles mais pas leurs photos, ce qui limite son utilité comme fiche produit.
+**Fix** : Inclure la première photo de chaque article (si disponible) dans le PDF, après la migration vers Uploadthing (T-102) pour avoir des URLs accessibles.
+
+---
+
+### T-117 · Filtres stats par période non persistants dans l'URL
+**Fichier** : `app/statistiques/page.tsx`
+Une fois T-113 implémenté, les filtres de période doivent être persistés dans l'URL pour pouvoir partager ou bookmarquer une vue spécifique.
+**Fix** : Stocker le filtre période dans les query params (`?periode=3mois`) via `useSearchParams`.
+
+---
+
+## 🟡 UX rapide (2026-03-26)
+
+### T-118 · Pas de bouton "Copier" sur le numéro de tracking
+**Fichier** : `components/ui/TrackingWidget.tsx`, `app/commandes/[id]/page.tsx`
+Copier un numéro de tracking nécessite de le sélectionner manuellement. Sur mobile c'est fastidieux.
+**Fix** : Ajouter une icône "copier" à côté du numéro de tracking qui copie dans le clipboard via `navigator.clipboard.writeText()` et affiche un toast "Copié !".
+
+---
+
+## 🟠 Sécurité (2026-03-26)
+
+### T-119 · Sessions JWT non révocables
+**Fichier** : `lib/auth.ts`
+Les tokens JWT sont valides jusqu'à leur expiration (8h ou 30j) même si l'utilisateur change son mot de passe ou est désactivé. Un token compromis reste valide.
+**Fix** : Ajouter une table `RevokedToken` en DB ou un champ `tokenVersion` sur `User`. Vérifier à chaque requête que le token n'est pas révoqué / que la version correspond.
+
+---
+
+### T-120 · Pas de 2FA
+**Fichier** : `lib/auth.ts`, `app/login/page.tsx`
+Pour une app avec des données financières réelles, l'authentification à deux facteurs est recommandée.
+**Fix** : Implémenter TOTP (Google Authenticator) via `otplib` — ajouter un champ `totpSecret` sur `User`, page de setup 2FA dans les paramètres, vérification du code après le mot de passe.
+
+---
+
+## 🟡 Dette technique (2026-03-26)
+
+### T-121 · `framer-motion` importé uniquement pour NavigationProgress
+**Fichier** : `components/ui/NavigationProgress.tsx`
+La lib `framer-motion` (~150kb gzipped) est une dépendance lourde utilisée uniquement pour animer la barre de progression de navigation.
+**Fix** : Remplacer par une implémentation CSS pure avec `transition` et `@keyframes`, ou utiliser `motion` (nouveau package minimal de Framer Motion). Supprimer `framer-motion` des dépendances.
+
+---
+
+### T-122 · `zod` installé mais jamais utilisé dans les API routes
+**Fichier** : toutes les routes `app/api/`
+Zod est dans les dépendances mais les API routes valident les inputs manuellement (checks `if (!fournisseur)` etc.) sans schéma structuré. Risque de laisser passer des données malformées.
+**Fix** : Créer des schémas Zod pour chaque payload (`CreateCommandeSchema`, `UpdateArticleSchema`, etc.) et les utiliser en début de chaque route handler. Retourner des erreurs 400 formatées.
+
+---
+
+*Fichier mis à jour le 2026-03-26.*

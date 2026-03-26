@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
@@ -34,6 +35,8 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 export default function ListeCommandes({ commandes, onRefresh }: Props) {
   const router = useRouter()
   const pathname = usePathname()
+  const pathnameRef = useRef(pathname)
+  pathnameRef.current = pathname
   const searchParams = useSearchParams()
   const [editCommande, setEditCommande] = useState<CommandeAvecRelations | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
@@ -49,6 +52,10 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
   const [page, setPage] = useState(() => Number(searchParams.get('page') ?? 1))
 
   // T-087 — synchroniser les filtres dans l'URL
+  // On ne remplace l'URL que si elle doit réellement changer. Cela évite que router.replace
+  // interfère avec un router.push en cours (ex. clic sur une ligne → /commandes/[id]).
+  // En particulier, lors d'un Fast Refresh, si aucun filtre n'est actif, targetPath === URL courante
+  // et on court-circuite l'appel inutile.
   useEffect(() => {
     const params = new URLSearchParams()
     if (search) params.set('search', search)
@@ -56,8 +63,11 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
     if (dateDebut) params.set('from', dateDebut)
     if (dateFin) params.set('to', dateFin)
     if (page > 1) params.set('page', String(page))
-    router.replace(`${pathname}${params.size ? `?${params}` : ''}`, { scroll: false })
-  }, [search, filtreStatut, dateDebut, dateFin, page, pathname, router])
+    const targetPath = `${pathnameRef.current}${params.size ? `?${params}` : ''}`
+    if (typeof window !== 'undefined' && window.location.pathname + window.location.search === targetPath) return
+    router.replace(targetPath, { scroll: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, filtreStatut, dateDebut, dateFin, page])
 
   // T-075 — restaurer la position de scroll après navigation arrière
   useEffect(() => {
@@ -344,8 +354,14 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
                         />
                       </td>
                       <td className="px-4 py-3.5">
-                        <p className="font-medium text-white">{commande.fournisseur}</p>
-                        {commande.tracking && <p className="text-xs text-white/35 mt-0.5 font-mono">{commande.tracking}</p>}
+                        <Link
+                          href={`/commandes/${commande.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="block hover:opacity-80 transition-opacity"
+                        >
+                          <p className="font-medium text-white">{commande.fournisseur}</p>
+                          {commande.tracking && <p className="text-xs text-white/35 mt-0.5 font-mono">{commande.tracking}</p>}
+                        </Link>
                       </td>
                       <td className="px-4 py-3.5 text-white/60">{new Date(commande.date).toLocaleDateString('fr-FR')}</td>
                       <td className="px-4 py-3.5"><Badge statut={commande.statut} /></td>

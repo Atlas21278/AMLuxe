@@ -7,7 +7,7 @@ import { test, expect } from '@playwright/test'
 test.describe('Page Statistiques', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/statistiques')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
   })
 
   test('page se charge sans erreur', async ({ page }) => {
@@ -16,7 +16,7 @@ test.describe('Page Statistiques', () => {
   })
 
   test('affiche les KPI cards principales', async ({ page }) => {
-    await expect(page.getByText('CA total', { exact: false }).first()).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText("Chiffre d'affaires", { exact: false }).first()).toBeVisible({ timeout: 10000 })
     await expect(page.getByText('Bénéfice', { exact: false }).first()).toBeVisible()
   })
 
@@ -27,7 +27,7 @@ test.describe('Page Statistiques', () => {
   })
 
   test('affiche la section par marque', async ({ page }) => {
-    await expect(page.getByText(/par marque|top marque/i)).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(/par marque|top marque/i).first()).toBeVisible({ timeout: 10000 })
   })
 
   test('affiche la section par fournisseur', async ({ page }) => {
@@ -56,7 +56,7 @@ test.describe('Page Statistiques', () => {
       if (msg.type() === 'error') errors.push(msg.text())
     })
     await page.goto('/statistiques')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     // Ignorer les erreurs Recharts connues (hydration warnings)
     const criticalErrors = errors.filter(
       (e) => !e.includes('Warning:') && !e.includes('ResizeObserver')

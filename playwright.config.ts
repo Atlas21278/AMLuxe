@@ -1,4 +1,20 @@
 import { defineConfig, devices } from '@playwright/test'
+import os from 'os'
+import path from 'path'
+import fs from 'fs'
+
+const AUTH_FILE = path.join(os.tmpdir(), 'amluxe-test-auth.json')
+
+// Charger .env.test.local si présent (DATABASE_URL staging)
+if (fs.existsSync('.env.test.local')) {
+  const lines = fs.readFileSync('.env.test.local', 'utf-8').split('\n')
+  for (const line of lines) {
+    const match = line.match(/^([^=#\s][^=]*)\s*=\s*"?([^"]*)"?\s*$/)
+    if (match) process.env[match[1]] = match[2]
+  }
+}
+
+const TEST_BASE_URL = process.env.TEST_BASE_URL ?? 'http://localhost:3001'
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -11,7 +27,7 @@ export default defineConfig({
     ['list'],
   ],
   use: {
-    baseURL: process.env.TEST_BASE_URL ?? 'http://localhost:3000',
+    baseURL: TEST_BASE_URL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -24,16 +40,19 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        storageState: 'tests/.auth/user.json',
+        storageState: AUTH_FILE,
         viewport: { width: 1280, height: 800 },
       },
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: true,   // Réutilise le serveur dev si déjà lancé
+    command: 'npm run dev:test',
+    url: 'http://localhost:3001',
+    reuseExistingServer: true,
     timeout: 120 * 1000,
     stderr: 'pipe',
+    env: Object.fromEntries(
+      Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined)
+    ),
   },
 })

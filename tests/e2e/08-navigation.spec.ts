@@ -20,25 +20,27 @@ test.describe('Navigation sidebar', () => {
       await page.goto('/commandes') // Point de départ
       await page.getByRole('link', { name: label, exact: true }).click()
       await expect(page).toHaveURL(href, { timeout: 8000 })
-      await page.waitForLoadState('networkidle')
+      await page.waitForLoadState('domcontentloaded')
       await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible({ timeout: 10000 })
     })
   }
 
   test('lien "Objectifs" navigue vers /objectifs', async ({ page }) => {
     await page.goto('/commandes')
+    await page.waitForLoadState('domcontentloaded')
     await page.getByRole('link', { name: 'Objectifs', exact: true }).click()
     await expect(page).toHaveURL('/objectifs', { timeout: 8000 })
     // La page est vide mais ne doit pas crasher
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await expect(page.locator('.login-error, [data-error]')).not.toBeVisible()
   })
 
   test('lien "Abonnements" navigue vers /parametres/abonnements', async ({ page }) => {
     await page.goto('/commandes')
+    await page.waitForLoadState('domcontentloaded')
     await page.getByRole('link', { name: 'Abonnements', exact: true }).click()
     await expect(page).toHaveURL('/parametres/abonnements', { timeout: 8000 })
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await expect(page.locator('.login-error, [data-error]')).not.toBeVisible()
   })
 })
@@ -46,7 +48,7 @@ test.describe('Navigation sidebar', () => {
 test.describe('État actif de la sidebar', () => {
   test('le lien actif est surligné sur /commandes', async ({ page }) => {
     await page.goto('/commandes')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     const commandesLink = page.getByRole('link', { name: 'Commandes', exact: true })
     // Le lien actif a la classe bg-purple-600/20 ou similaire
     await expect(commandesLink).toHaveClass(/purple/, { timeout: 5000 })
@@ -54,7 +56,7 @@ test.describe('État actif de la sidebar', () => {
 
   test('le lien actif est surligné sur /articles', async ({ page }) => {
     await page.goto('/articles')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     const articlesLink = page.getByRole('link', { name: 'Articles', exact: true })
     await expect(articlesLink).toHaveClass(/purple/, { timeout: 5000 })
   })
@@ -63,19 +65,20 @@ test.describe('État actif de la sidebar', () => {
 test.describe('Sidebar collapsible (desktop)', () => {
   test('bouton collapse réduit la sidebar', async ({ page }) => {
     await page.goto('/commandes')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     const btnCollapse = page.getByRole('button', { name: 'Réduire la sidebar' })
     await expect(btnCollapse).toBeVisible()
     await btnCollapse.click()
 
-    // Le texte "Commandes" disparaît (sidebar réduite)
-    await expect(page.getByRole('link', { name: 'Commandes', exact: true })).not.toBeVisible({ timeout: 3000 })
+    // En mode réduit, le label texte "Commandes" n'est plus rendu (seulement l'icône + title tooltip)
+    const desktopSidebar = page.locator('div.hidden.lg\\:flex')
+    await expect(desktopSidebar.getByText('Commandes', { exact: true })).not.toBeVisible({ timeout: 3000 })
 
     // Étendre à nouveau
     const btnExpand = page.getByRole('button', { name: 'Étendre la sidebar' })
     await btnExpand.click()
-    await expect(page.getByRole('link', { name: 'Commandes', exact: true })).toBeVisible({ timeout: 3000 })
+    await expect(desktopSidebar.getByText('Commandes', { exact: true })).toBeVisible({ timeout: 3000 })
   })
 })
 
@@ -83,13 +86,13 @@ test.describe('Breadcrumb et retour', () => {
   test('la page commande détail a un breadcrumb "Commandes > fournisseur"', async ({ page }) => {
     // Aller sur la liste et cliquer la première commande
     await page.goto('/commandes')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     const premiereLigne = page.locator('tr').nth(1) // 1ère ligne après le header
     if (await premiereLigne.isVisible()) {
       await premiereLigne.click()
       await expect(page).toHaveURL(/\/commandes\/\d+/, { timeout: 8000 })
-      await page.waitForLoadState('networkidle')
+      await page.waitForLoadState('domcontentloaded')
       // Breadcrumb "Commandes" visible
       await expect(page.getByRole('link', { name: 'Commandes' })).toBeVisible()
     }
@@ -110,17 +113,19 @@ test.describe('Responsive — mobile', () => {
 
   test('la sidebar est masquée sur mobile au chargement', async ({ page }) => {
     await page.goto('/commandes')
-    await page.waitForLoadState('networkidle')
-    // Sur mobile la sidebar est dans un drawer, les liens ne sont pas visibles sans ouvrir
-    await expect(page.getByRole('link', { name: 'Commandes', exact: true })).not.toBeVisible()
+    await page.waitForLoadState('domcontentloaded')
+    // Sur mobile, le drawer est fermé : classe -translate-x-full (hors-viewport)
+    // Note: Playwright ne considère pas translateX comme "hidden" — vérifier la classe CSS
+    const mobileDrawer = page.locator('div.lg\\:hidden.fixed.inset-y-0')
+    await expect(mobileDrawer).toHaveClass(/-translate-x-full/)
   })
 
   test('le bouton menu ouvre le drawer sur mobile', async ({ page }) => {
     await page.goto('/commandes')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
-    // Bouton hamburger/menu
-    const btnMenu = page.getByRole('button', { name: /menu|ouvrir/i }).first()
+    // Bouton hamburger avec aria-label="Menu" dans la barre mobile
+    const btnMenu = page.locator('button[aria-label="Menu"]')
     if (await btnMenu.isVisible()) {
       await btnMenu.click()
       // Drawer ouvert → liens visibles
@@ -132,13 +137,13 @@ test.describe('Responsive — mobile', () => {
 test.describe('Page Export', () => {
   test('page export se charge correctement', async ({ page }) => {
     await page.goto('/export')
-    await page.waitForLoadState('networkidle')
-    await expect(page.getByRole('heading', { name: /export/i })).toBeVisible({ timeout: 8000 })
+    await page.waitForLoadState('domcontentloaded')
+    await expect(page.getByRole('heading', { name: /export/i }).first()).toBeVisible({ timeout: 8000 })
   })
 
   test('bouton d\'export est présent et cliquable', async ({ page }) => {
     await page.goto('/export')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     const exportBtn = page.getByRole('button', { name: /exporter|télécharger/i }).first()
     await expect(exportBtn).toBeVisible({ timeout: 8000 })
   })

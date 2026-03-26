@@ -33,6 +33,7 @@ export default function ExportPage() {
 
     // ── 1. TABLEAU DE BORD ──────────────────────────────
     type ArticleRaw = {
+      commandeId: number
       marque: string; modele: string; etat: string; refFournisseur: string | null
       statut: string; prixAchat: number; prixVente: number | null; plateforme: string | null
       prixVenteReel: number | null; fraisVente: number | null; dateVente: string | null
@@ -45,21 +46,26 @@ export default function ExportPage() {
       frais: { montant: number }[]
     }
 
-    const vendus = (articles as ArticleRaw[]).filter((a) => a.statut === 'Vendu' && a.prixVenteReel)
+    const allArticles = articles as ArticleRaw[]
+    const vendus = allArticles.filter((a) => a.statut === 'Vendu' && a.prixVenteReel)
     const caTotal = vendus.reduce((acc, a) => acc + (a.prixVenteReel ?? 0), 0)
     const fraisVenteTotal = vendus.reduce((acc, a) => acc + (a.fraisVente ?? 0), 0)
     const coutAchatVendus = vendus.reduce((acc, a) => acc + a.prixAchat, 0)
-    const beneficeNet = caTotal - fraisVenteTotal - coutAchatVendus
-    const margeGlobale = caTotal > 0 ? (beneficeNet / caTotal) * 100 : 0
-    const coutAchatTotal = (articles as ArticleRaw[]).reduce((acc, a) => acc + a.prixAchat, 0)
+    // Bénéfice brut = CA − achats − frais vente (frais commandes déduits séparément)
+    const beneficeBrut = caTotal - fraisVenteTotal - coutAchatVendus
     const totalFraisCommandes = (commandes as CommandeRaw[]).reduce((acc, c) => acc + c.frais.reduce((s, f) => s + f.montant, 0), 0)
+    const beneficeNet = beneficeBrut - totalFraisCommandes
+    const margeGlobale = caTotal > 0 ? (beneficeNet / caTotal) * 100 : 0
+    const coutAchatTotal = allArticles.reduce((acc, a) => acc + a.prixAchat, 0)
 
     const dashboardData = [
       { Indicateur: '── VENTES ──', Valeur: '', Détail: '' },
       { Indicateur: "Chiffre d'affaires total", Valeur: caTotal.toFixed(2) + ' €', Détail: `${vendus.length} articles vendus` },
       { Indicateur: 'Frais de vente (commissions)', Valeur: fraisVenteTotal.toFixed(2) + ' €', Détail: 'Vinted, Leboncoin, etc.' },
       { Indicateur: "Coût d'achat (vendus)", Valeur: coutAchatVendus.toFixed(2) + ' €', Détail: '' },
-      { Indicateur: 'Bénéfice net', Valeur: beneficeNet.toFixed(2) + ' €', Détail: 'CA - frais vente - coût achat' },
+      { Indicateur: 'Bénéfice brut', Valeur: beneficeBrut.toFixed(2) + ' €', Détail: 'CA - frais vente - achats' },
+      { Indicateur: 'Frais commandes (douane/livraison)', Valeur: totalFraisCommandes.toFixed(2) + ' €', Détail: 'toutes commandes confondues' },
+      { Indicateur: 'Bénéfice net', Valeur: beneficeNet.toFixed(2) + ' €', Détail: 'Bénéfice brut - frais commandes' },
       { Indicateur: 'Marge globale', Valeur: margeGlobale.toFixed(1) + ' %', Détail: 'sur CA' },
       { Indicateur: '', Valeur: '', Détail: '' },
       { Indicateur: '── STOCK ──', Valeur: '', Détail: '' },
@@ -79,7 +85,7 @@ export default function ExportPage() {
 
     // ── 2. PAR MARQUE ───────────────────────────────────
     const parMarque: Record<string, { marque: string; nb: number; nbVendus: number; caMarque: number; beneficeMarque: number; prixAchatTotal: number }> = {}
-    for (const a of articles as ArticleRaw[]) {
+    for (const a of allArticles) {
       if (!parMarque[a.marque]) parMarque[a.marque] = { marque: a.marque, nb: 0, nbVendus: 0, caMarque: 0, beneficeMarque: 0, prixAchatTotal: 0 }
       parMarque[a.marque].nb++
       parMarque[a.marque].prixAchatTotal += a.prixAchat
@@ -105,7 +111,7 @@ export default function ExportPage() {
     XLSX.utils.book_append_sheet(wb, wsMarque, '🏷️ Par marque')
 
     // ── 3. ARTICLES ─────────────────────────────────────
-    const articlesData = (articles as ArticleRaw[]).map((a) => {
+    const articlesData = allArticles.map((a) => {
       const benefice = a.prixVenteReel ? a.prixVenteReel - (a.fraisVente ?? 0) - a.prixAchat : null
       return {
         Fournisseur: a.commande.fournisseur,
