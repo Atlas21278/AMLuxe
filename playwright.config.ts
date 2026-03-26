@@ -51,8 +51,8 @@ export default defineConfig({
     reuseExistingServer: true,
     timeout: 120 * 1000,
     stderr: 'pipe',
-    env: {
-      ...process.env, // inclut DATABASE_URL chargée depuis .env.test.local
-    },
+    env: Object.fromEntries(
+      Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined)
+    ),
   },
 })
