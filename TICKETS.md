@@ -707,7 +707,7 @@ Le dropdown du Combobox utilise `position: absolute` à l'intérieur d'un parent
 
 ---
 
-### 🟢 T-100 · `app/error.tsx` — paramètre `error` reçu mais non affiché
+### ✅ T-100 · `app/error.tsx` — paramètre `error` reçu mais non affiché
 **Fichier** : `app/error.tsx`
 Next.js passe les props `{ error, reset }` à l'error boundary. Le composant affiche un message générique et n'exploite pas `error.message` ni `error.digest` pour aider au débogage.
 **Fix** : Afficher `error.digest` (court, pas de fuite de stack) en mode dev, ou logger discrètement.
@@ -725,3 +725,50 @@ Afficher la première photo de l'article comme miniature dans la liste (desktop 
 **Fichiers** : `components/ui/Badge.tsx`, `app/articles/page.tsx`, `app/commandes/[id]/page.tsx`
 Le lien annonce (Vinted/Leboncoin) d'un article "En vente" n'est accessible que via une icône dans la colonne actions, peu visible. Le badge "En vente" devrait lui-même être cliquable et ouvrir l'annonce dans un nouvel onglet.
 **Fix** : Ajouter une prop `href` optionnelle à `Badge` — si présente et statut = "En vente", le badge devient un `<a>` avec icône ↗ et hover distinct. Supprimer l'icône redondante dans la colonne actions.
+
+---
+
+## 🔴 Infrastructure critique (2026-03-26)
+
+### T-102 · Photos articles stockées en base64 dans PostgreSQL
+**Fichier** : `app/api/articles/[id]/photos/route.ts`, `components/articles/PhotosArticle.tsx`
+Les photos sont converties en base64 et stockées directement dans le champ `photos String[]` de la table `Article`. Chaque photo (max 2 Mo) est encodée en ~2.7 Mo de texte en DB. Avec 6 photos par article, une seule commande peut ajouter 16 Mo dans PostgreSQL. La DB grossit vite, les requêtes GET /api/articles retournent des Mo de données inutiles si on ne veut pas les photos.
+**Fix** : Migrer vers Uploadthing (uploadthing.com) — upload direct depuis le client vers le CDN, stocker l'URL HTTPS dans `photos[]` à la place du base64. Les photos existantes (data: URLs) continuent d'afficher normalement. Ajouter `UPLOADTHING_TOKEN` dans les variables Railway.
+
+---
+
+### T-103 · Reset mot de passe non implémenté
+**Fichier** : `app/mot-de-passe-oublie/page.tsx`, `app/api/` (manquant)
+La page `/mot-de-passe-oublie` existe et est accessible depuis le login, mais aucun endpoint API n'est branché derrière. Cliquer "Envoyer" ne fait rien.
+**Fix** : Implémenter le flow complet avec Resend (resend.com) : 1) `POST /api/auth/forgot-password` génère un token temporaire (1h) stocké en DB dans la table `Config`, 2) envoie un email avec le lien, 3) `POST /api/auth/reset-password` vérifie le token et met à jour le mot de passe. Ajouter `RESEND_API_KEY` dans les variables Railway.
+
+---
+
+## 🟠 Monitoring & Outils (2026-03-26)
+
+### T-104 · Aucun monitoring des erreurs en production
+**Impact** : Les erreurs JS/API en prod sont invisibles — on ne les découvre que quand un utilisateur signale un problème. `error.digest` (T-100) donne un ID mais sans système pour retrouver l'erreur correspondante.
+**Fix** : Intégrer Sentry (`@sentry/nextjs`) — capture automatique des erreurs client et serveur avec stack trace complète. Gratuit jusqu'à 5k events/mois. Ajouter `SENTRY_DSN` dans les variables Railway. Setup : `npx @sentry/wizard@latest -i nextjs`.
+
+---
+
+### T-105 · MCP PostgreSQL pour Claude Code
+**Impact** : Claude ne peut pas interroger la base de données directement — pour débugger des données ou vérifier des stats, il faut passer par le dashboard Railway ou Prisma Studio.
+**Fix** : Installer le MCP server PostgreSQL dans Claude Code : `claude mcp add postgres -e DATABASE_URL="<prod_public_url>"`. Permet à Claude de faire des SELECT, inspecter le schéma, compter des enregistrements directement depuis le chat.
+
+---
+
+### T-106 · MCP GitHub pour Claude Code
+**Impact** : Claude ne peut pas créer des PRs, des issues ou lire les diffs GitHub directement — le workflow develop → main est manuel.
+**Fix** : Installer le MCP server GitHub dans Claude Code avec un token personnel : `claude mcp add github -e GITHUB_TOKEN="<token>"`. Permet à Claude de créer des PRs, issues, lire les commits et automatiser le merge develop → main.
+
+---
+
+### ✅ T-107 · NEXTAUTH_SECRET faible en production
+**Fichier** : Variable d'environnement Railway
+La valeur `amluxe-secret-key-2024-super-secure` était prévisible — un attaquant connaissant ce secret peut forger des tokens JWT et se connecter sans mot de passe.
+**Fix appliqué** : Remplacé par une clé aléatoire 256 bits via `crypto.randomBytes(32).toString('base64')`, mis à jour directement sur Railway via CLI.
+
+---
+
+*Fichier mis à jour le 2026-03-26.*
