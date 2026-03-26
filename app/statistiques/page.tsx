@@ -6,6 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line,
 } from 'recharts'
+import { calculerBeneficeArticle, construireMapFraisParArticle } from '@/lib/finance'
 import type { Article, Commande, Frais } from '@prisma/client'
 
 type ArticleAvecCommande = Article & { commande: Commande & { frais: Frais[] } }
@@ -34,42 +35,47 @@ export default function StatistiquesPage() {
   const vendus = useMemo(() => articles.filter((a) => a.statut === 'Vendu' && a.prixVenteReel), [articles])
   const enStock = useMemo(() => articles.filter((a) => a.statut === 'En stock' || a.statut === 'En vente'), [articles])
 
+  // Map commandeId → fraisParArticle (prorata = fraisCommande / nbArticlesTotal)
+  // Construit à partir de TOUS les articles (pas que les vendus) pour avoir le bon dénominateur
+  const mapFrais = useMemo(() => construireMapFraisParArticle(articles), [articles])
+
+  // Bénéfice par article vendu (inclut quote-part frais commande)
+  const beneficesParArticle = useMemo(() =>
+    vendus.map((a) => ({
+      ...a,
+      benefice: calculerBeneficeArticle(
+        a.prixVenteReel ?? 0,
+        a.prixAchat,
+        a.fraisVente ?? 0,
+        mapFrais.get(a.commandeId) ?? 0
+      ),
+    })),
+    [vendus, mapFrais]
+  )
+
   // KPIs globaux
   const caTotal = useMemo(() => vendus.reduce((acc, a) => acc + (a.prixVenteReel ?? 0), 0), [vendus])
   const fraisVenteTotal = useMemo(() => vendus.reduce((acc, a) => acc + (a.fraisVente ?? 0), 0), [vendus])
   const coutAchatTotal = useMemo(() => vendus.reduce((acc, a) => acc + a.prixAchat, 0), [vendus])
-
-  // Frais commande (douane, livraison) — on prend toutes les commandes qui ont au moins un article vendu
-  const fraisCommandeTotal = useMemo(() => {
-    const commandesAvecVente = new Set(vendus.map((a) => a.commandeId))
-    return articles
-      .filter((a) => commandesAvecVente.has(a.commandeId))
-      .reduce((acc, a, _, arr) => {
-        const dejaPris = arr.slice(0, arr.indexOf(a)).some((b) => b.commandeId === a.commandeId)
-        if (dejaPris) return acc
-        return acc + a.commande.frais.reduce((s, f) => s + f.montant, 0)
-      }, 0)
-  }, [vendus, articles])
-
-  const beneficeTotal = useMemo(
-    () => caTotal - fraisVenteTotal - coutAchatTotal - fraisCommandeTotal - coutAbonnementTotal,
-    [caTotal, fraisVenteTotal, coutAchatTotal, fraisCommandeTotal, coutAbonnementTotal]
-  )
-  const margeGlobale = caTotal > 0 ? ((beneficeTotal / caTotal) * 100).toFixed(1) : '0'
+  const fraisCommandeTotal = useMemo(() => beneficesParArticle.reduce((acc, a) => acc + (mapFrais.get(a.commandeId) ?? 0), 0), [beneficesParArticle, mapFrais])
+  const beneficeBrut = useMemo(() => beneficesParArticle.reduce((acc, a) => acc + a.benefice, 0), [beneficesParArticle])
+  // Bénéfice net = bénéfice brut − abonnements mensuels (coûts fixes non attribuables à un article)
+  const beneficeNet = useMemo(() => beneficeBrut - coutAbonnementTotal, [beneficeBrut, coutAbonnementTotal])
+  const margeGlobale = caTotal > 0 ? ((beneficeNet / caTotal) * 100).toFixed(1) : '0'
 
   // Valeur stock
   const valeurStock = useMemo(() => enStock.reduce((acc, a) => acc + a.prixAchat, 0), [enStock])
 
-  // Par marque
+  // Par marque — bénéfice inclut la quote-part frais commande
   const parMarque = useMemo(() => Object.values(
-    vendus.reduce<Record<string, { marque: string; ca: number; benefice: number; nb: number }>>((acc, a) => {
+    beneficesParArticle.reduce<Record<string, { marque: string; ca: number; benefice: number; nb: number }>>((acc, a) => {
       if (!acc[a.marque]) acc[a.marque] = { marque: a.marque, ca: 0, benefice: 0, nb: 0 }
       acc[a.marque].ca += a.prixVenteReel ?? 0
-      acc[a.marque].benefice += (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat
+      acc[a.marque].benefice += a.benefice
       acc[a.marque].nb += 1
       return acc
     }, {})
-  ).sort((a, b) => b.benefice - a.benefice), [vendus])
+  ).sort((a, b) => b.benefice - a.benefice), [beneficesParArticle])
 
   // Par plateforme — CA + nb
   const parPlateforme = useMemo(() => Object.values(
@@ -82,34 +88,34 @@ export default function StatistiquesPage() {
     }, {})
   ).sort((a, b) => b.ca - a.ca), [vendus])
 
-  // Par fournisseur
+  // Par fournisseur — bénéfice inclut la quote-part frais commande
   const parFournisseur = useMemo(() => Object.values(
-    vendus.reduce<Record<string, { fournisseur: string; nb: number; ca: number; benefice: number }>>((acc, a) => {
+    beneficesParArticle.reduce<Record<string, { fournisseur: string; nb: number; ca: number; benefice: number }>>((acc, a) => {
       const f = a.commande.fournisseur
       if (!acc[f]) acc[f] = { fournisseur: f, nb: 0, ca: 0, benefice: 0 }
       acc[f].nb += 1
       acc[f].ca += a.prixVenteReel ?? 0
-      acc[f].benefice += (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat
+      acc[f].benefice += a.benefice
       return acc
     }, {})
-  ).sort((a, b) => b.ca - a.ca), [vendus])
+  ).sort((a, b) => b.ca - a.ca), [beneficesParArticle])
 
-  // Evolution mensuelle
+  // Évolution mensuelle — bénéfice inclut la quote-part frais commande
   const parMois = useMemo(() => {
-    const parMoisMap = vendus.reduce<Record<string, { mois: string; ca: number; benefice: number }>>((acc, a) => {
+    const parMoisMap = beneficesParArticle.reduce<Record<string, { mois: string; ca: number; benefice: number }>>((acc, a) => {
       if (!a.dateVente) return acc
       const d = new Date(a.dateVente)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       const label = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
       if (!acc[key]) acc[key] = { mois: label, ca: 0, benefice: 0 }
       acc[key].ca += a.prixVenteReel ?? 0
-      acc[key].benefice += (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0) - a.prixAchat
+      acc[key].benefice += a.benefice
       return acc
     }, {})
     return Object.entries(parMoisMap)
       .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
       .map(([, val]) => val)
-  }, [vendus])
+  }, [beneficesParArticle])
 
   if (loading) return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -164,10 +170,10 @@ export default function StatistiquesPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {[
           { label: "Chiffre d'affaires", value: `${caTotal.toFixed(0)} €`, sub: `${vendus.length} ventes`, color: 'text-white' },
-          { label: 'Bénéfice net', value: `${beneficeTotal.toFixed(0)} €`, sub: 'après tous frais', color: beneficeTotal >= 0 ? 'text-green-400' : 'text-red-400' },
+          { label: 'Bénéfice net', value: `${beneficeNet.toFixed(0)} €`, sub: 'après tous frais', color: beneficeNet >= 0 ? 'text-green-400' : 'text-red-400' },
           { label: 'Marge globale', value: `${margeGlobale}%`, sub: 'sur CA', color: Number(margeGlobale) >= 20 ? 'text-green-400' : 'text-yellow-400' },
           { label: 'Frais de vente', value: `${fraisVenteTotal.toFixed(0)} €`, sub: 'commissions', color: 'text-white' },
-          { label: 'Frais douane/livr.', value: `${fraisCommandeTotal.toFixed(0)} €`, sub: 'sur commandes vendues', color: 'text-white' },
+          { label: 'Frais douane/livr.', value: `${fraisCommandeTotal.toFixed(0)} €`, sub: 'répartis au prorata', color: 'text-white' },
           { label: 'Stock en cours', value: `${valeurStock.toFixed(0)} €`, sub: `${enStock.length} articles`, color: 'text-amber-400' },
         ].map((kpi) => (
           <div key={kpi.label} className="bg-white/3 border border-white/5 rounded-xl p-4">
@@ -189,19 +195,23 @@ export default function StatistiquesPage() {
           <span className="text-white/60">Frais vente : <span className="text-white font-medium">{fraisVenteTotal.toFixed(2)} €</span></span>
           <span className="text-white/40">−</span>
           <span className="text-white/60">Douane/livr. : <span className="text-white font-medium">{fraisCommandeTotal.toFixed(2)} €</span></span>
+          <span className="text-white/40">=</span>
+          <span className={`font-bold ${beneficeBrut >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {beneficeBrut.toFixed(2)} €
+          </span>
           {coutAbonnementTotal > 0 && (
             <>
               <span className="text-white/40">−</span>
               <span className="text-white/60">
-                Abonnements fournisseur :{' '}
+                Abonnements :{' '}
                 <span className="text-white font-medium">{coutAbonnementTotal.toFixed(2)} €</span>
+              </span>
+              <span className="text-white/40">=</span>
+              <span className={`font-bold ${beneficeNet >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {beneficeNet.toFixed(2)} € <span className="text-xs font-normal text-white/40">(net)</span>
               </span>
             </>
           )}
-          <span className="text-white/40">=</span>
-          <span className={`font-bold ${beneficeTotal >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {beneficeTotal.toFixed(2)} €
-          </span>
         </div>
       </div>
 
