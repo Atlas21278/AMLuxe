@@ -1,5 +1,6 @@
 node_modules
 .env
+.env.test.local
 .next/
 *.db
 prisma.config.ts.bak
