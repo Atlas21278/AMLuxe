@@ -730,37 +730,30 @@ Le lien annonce (Vinted/Leboncoin) d'un article "En vente" n'est accessible que 
 
 ## 🔴 Infrastructure critique (2026-03-26)
 
-### T-102 · Photos articles stockées en base64 dans PostgreSQL
-**Fichier** : `app/api/articles/[id]/photos/route.ts`, `components/articles/PhotosArticle.tsx`
-Les photos sont converties en base64 et stockées directement dans le champ `photos String[]` de la table `Article`. Chaque photo (max 2 Mo) est encodée en ~2.7 Mo de texte en DB. Avec 6 photos par article, une seule commande peut ajouter 16 Mo dans PostgreSQL. La DB grossit vite, les requêtes GET /api/articles retournent des Mo de données inutiles si on ne veut pas les photos.
-**Fix** : Migrer vers Uploadthing (uploadthing.com) — upload direct depuis le client vers le CDN, stocker l'URL HTTPS dans `photos[]` à la place du base64. Les photos existantes (data: URLs) continuent d'afficher normalement. Ajouter `UPLOADTHING_TOKEN` dans les variables Railway.
+### ✅ T-102 · Photos articles stockées en base64 dans PostgreSQL
+Migration vers Uploadthing CDN — upload direct client → CDN, URL stockée en DB. Rétrocompat base64 maintenue.
 
 ---
 
-### T-103 · Reset mot de passe non implémenté
-**Fichier** : `app/mot-de-passe-oublie/page.tsx`, `app/api/` (manquant)
-La page `/mot-de-passe-oublie` existe et est accessible depuis le login, mais aucun endpoint API n'est branché derrière. Cliquer "Envoyer" ne fait rien.
-**Fix** : Implémenter le flow complet avec Resend (resend.com) : 1) `POST /api/auth/forgot-password` génère un token temporaire (1h) stocké en DB dans la table `Config`, 2) envoie un email avec le lien, 3) `POST /api/auth/reset-password` vérifie le token et met à jour le mot de passe. Ajouter `RESEND_API_KEY` dans les variables Railway.
+### ⛔ T-103 · Reset mot de passe — SKIP
+Non pertinent : app mono-utilisateur, le MDP se change via `/parametres/utilisateurs`.
 
 ---
 
 ## 🟠 Monitoring & Outils (2026-03-26)
 
-### T-104 · Aucun monitoring des erreurs en production
-**Impact** : Les erreurs JS/API en prod sont invisibles — on ne les découvre que quand un utilisateur signale un problème. `error.digest` (T-100) donne un ID mais sans système pour retrouver l'erreur correspondante.
-**Fix** : Intégrer Sentry (`@sentry/nextjs`) — capture automatique des erreurs client et serveur avec stack trace complète. Gratuit jusqu'à 5k events/mois. Ajouter `SENTRY_DSN` dans les variables Railway. Setup : `npx @sentry/wizard@latest -i nextjs`.
+### ⛔ T-104 · Monitoring Sentry — SKIP
+Overkill pour usage mono-utilisateur. Les erreurs sont visibles directement.
 
 ---
 
-### T-105 · MCP PostgreSQL pour Claude Code
-**Impact** : Claude ne peut pas interroger la base de données directement — pour débugger des données ou vérifier des stats, il faut passer par le dashboard Railway ou Prisma Studio.
-**Fix** : Installer le MCP server PostgreSQL dans Claude Code : `claude mcp add postgres -e DATABASE_URL="<prod_public_url>"`. Permet à Claude de faire des SELECT, inspecter le schéma, compter des enregistrements directement depuis le chat.
+### ⛔ T-105 · MCP PostgreSQL — SKIP
+Outillage dev uniquement, pas de valeur pour l'app.
 
 ---
 
-### T-106 · MCP GitHub pour Claude Code
-**Impact** : Claude ne peut pas créer des PRs, des issues ou lire les diffs GitHub directement — le workflow develop → main est manuel.
-**Fix** : Installer le MCP server GitHub dans Claude Code avec un token personnel : `claude mcp add github -e GITHUB_TOKEN="<token>"`. Permet à Claude de créer des PRs, issues, lire les commits et automatiser le merge develop → main.
+### ⛔ T-106 · MCP GitHub — SKIP
+Outillage dev uniquement, workflow develop → main reste manuel.
 
 ---
 
@@ -789,19 +782,15 @@ Chaque navigation vers une page recharge toutes les données depuis la DB via `f
 
 ---
 
-### T-110 · Prisma 7 disponible (migration majeure)
-**Fichier** : `package.json`, `prisma/schema.prisma`
-Prisma est en version 6.19.2, la version 7.5.0 est disponible. C'est une migration majeure (breaking changes sur les types, les relations, etc.).
-**Fix** : Suivre le guide officiel `https://pris.ly/d/major-version-upgrade`. À faire sur une branche dédiée avec tests complets avant merge.
+### ⛔ T-110 · Prisma 7 — SKIP
+Migration majeure sans bénéfice utilisateur. Risque inutile.
 
 ---
 
 ## 🔴 Bug critique (2026-03-26)
 
-### T-111 · calculerBenefice() orpheline — chiffres incohérents dashboard vs stats
-**Fichiers** : `lib/calculs.ts`, `app/page.tsx`, `app/statistiques/page.tsx`
-`calculerBenefice()` est définie dans `lib/calculs.ts` mais n'est importée **nulle part**. Le dashboard (`app/page.tsx`) calcule le bénéfice comme `prixVenteReel - fraisVente - prixAchat` sans déduire les frais de commande. La page stats a sa propre formule. L'utilisateur voit deux chiffres différents pour la même période.
-**Fix** : Importer et utiliser `calculerBenefice()` depuis `lib/calculs.ts` dans `app/page.tsx` et `app/statistiques/page.tsx`. Supprimer les calculs inline dupliqués.
+### ✅ T-111 · calculerBenefice() orpheline — chiffres incohérents dashboard vs stats
+Refonte avec `lib/finance.ts` comme source unique de vérité (Option B).
 
 ---
 
@@ -860,17 +849,13 @@ Copier un numéro de tracking nécessite de le sélectionner manuellement. Sur m
 
 ## 🟠 Sécurité (2026-03-26)
 
-### T-119 · Sessions JWT non révocables
-**Fichier** : `lib/auth.ts`
-Les tokens JWT sont valides jusqu'à leur expiration (8h ou 30j) même si l'utilisateur change son mot de passe ou est désactivé. Un token compromis reste valide.
-**Fix** : Ajouter une table `RevokedToken` en DB ou un champ `tokenVersion` sur `User`. Vérifier à chaque requête que le token n'est pas révoqué / que la version correspond.
+### ⛔ T-119 · Sessions JWT non révocables — SKIP
+Overkill mono-utilisateur. Expiration 8h suffisante.
 
 ---
 
-### T-120 · Pas de 2FA
-**Fichier** : `lib/auth.ts`, `app/login/page.tsx`
-Pour une app avec des données financières réelles, l'authentification à deux facteurs est recommandée.
-**Fix** : Implémenter TOTP (Google Authenticator) via `otplib` — ajouter un champ `totpSecret` sur `User`, page de setup 2FA dans les paramètres, vérification du code après le mot de passe.
+### ⛔ T-120 · 2FA — SKIP
+Overkill pour usage personnel.
 
 ---
 
@@ -890,4 +875,20 @@ Zod est dans les dépendances mais les API routes valident les inputs manuelleme
 
 ---
 
-*Fichier mis à jour le 2026-03-26.*
+*Fichier mis à jour le 2026-03-27.*
+
+## Backlog actif (tickets restants par ordre de priorité)
+
+| # | Ticket | Impact |
+|---|--------|--------|
+| 1 | T-108 | Quick win perf — exclure photos du GET liste |
+| 2 | T-113 | Filtre période + comparaison % dans les stats |
+| 3 | T-117 | Filtres stats dans l'URL (dépend T-113) |
+| 4 | T-112 | Frais répartis sur articles vendus seulement |
+| 5 | T-114 | Dupliquer une commande |
+| 6 | T-115 | Déplacer un article vers une autre commande |
+| 7 | T-116 | Photos dans l'export PDF |
+| 8 | T-118 | Bouton copier numéro de tracking |
+| 9 | T-109 | Cache client SWR/TanStack Query |
+| 10 | T-121 | Remplacer framer-motion (bundle -150kb) |
+| 11 | T-122 | Schémas Zod sur les routes API |

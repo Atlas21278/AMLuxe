@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   if (!pageParam && !commandeId) {
     const articles = await prisma.article.findMany({
       where: { deletedAt: null },
+      omit: { photos: true },
       include: { commande: { include: { frais: true } } },
       orderBy: { createdAt: 'desc' },
     })
@@ -54,6 +55,7 @@ export async function GET(req: NextRequest) {
   const [data, total, statsGroups, marques, plateformes] = await Promise.all([
     prisma.article.findMany({
       where,
+      omit: { photos: true },
       include: { commande: { include: { frais: true } } },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
