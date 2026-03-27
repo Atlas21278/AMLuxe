@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
+import { useUploadThing } from '@/lib/uploadthing'
 
 interface Props {
   articleId: number
@@ -12,23 +13,35 @@ interface Props {
 export default function PhotosArticle({ articleId, photos, onUpdate }: Props) {
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
   const inputId = `photo-upload-${articleId}`
+
+  const { startUpload } = useUploadThing('articlePhoto')
 
   const handleUpload = async (file: File) => {
     setUploading(true)
-    const fd = new FormData()
-    fd.append('file', file)
     try {
-      const res = await fetch(`/api/articles/${articleId}/photos`, { method: 'POST', body: fd })
+      const result = await startUpload([file])
+      if (!result?.[0]) {
+        toast.error('Erreur lors du téléversement')
+        return
+      }
+      const url = result[0].ufsUrl
+
+      const res = await fetch(`/api/articles/${articleId}/photos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
       if (!res.ok) {
         const err = await res.json()
-        toast.error(err.error ?? 'Erreur lors du téléversement')
+        toast.error(err.error ?? 'Erreur lors de l\'enregistrement')
         return
       }
       const { photos: updated } = await res.json()
       onUpdate(updated)
       toast.success('Photo ajoutée')
+    } catch {
+      toast.error('Erreur lors du téléversement')
     } finally {
       setUploading(false)
     }
@@ -84,7 +97,6 @@ export default function PhotosArticle({ articleId, photos, onUpdate }: Props) {
         )}
       </div>
       <input
-        ref={inputRef}
         id={inputId}
         type="file"
         accept="image/*"

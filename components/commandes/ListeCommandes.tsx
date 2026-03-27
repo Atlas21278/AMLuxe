@@ -39,6 +39,7 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
   pathnameRef.current = pathname
   const searchParams = useSearchParams()
   const [editCommande, setEditCommande] = useState<CommandeAvecRelations | null>(null)
+  const [dupliquerCommande, setDupliquerCommande] = useState<CommandeAvecRelations | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [deleteSelection, setDeleteSelection] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -375,6 +376,11 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
+                          <button onClick={(e) => { e.stopPropagation(); setDupliquerCommande(commande) }} className="p-1.5 rounded-md hover:bg-blue-500/10 text-white/40 hover:text-blue-400 transition-colors" title="Dupliquer">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          </button>
                           <button onClick={(e) => { e.stopPropagation(); setDeleteId(commande.id) }} className="p-1.5 rounded-md hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors" title="Supprimer">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -433,6 +439,23 @@ export default function ListeCommandes({ commandes, onRefresh }: Props) {
       {editCommande && (
         <Modal title="Modifier la commande" onClose={() => setEditCommande(null)}>
           <FormulaireCommande commande={editCommande} onClose={() => { setEditCommande(null); onRefresh() }} />
+        </Modal>
+      )}
+
+      {/* Modal duplication */}
+      {dupliquerCommande && (
+        <Modal title={`Dupliquer — ${dupliquerCommande.fournisseur}`} onClose={() => setDupliquerCommande(null)}>
+          <FormulaireCommande
+            fournisseurs={[dupliquerCommande.fournisseur]}
+            initialArticles={dupliquerCommande.articles.map((a) => ({
+              marque: a.marque,
+              modele: a.modele,
+              prixAchat: String(a.prixAchat),
+              etat: a.etat,
+              refFournisseur: a.refFournisseur ?? '',
+            }))}
+            onClose={() => { setDupliquerCommande(null); onRefresh() }}
+          />
         </Modal>
       )}
 

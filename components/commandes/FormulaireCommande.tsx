@@ -29,6 +29,7 @@ interface Props {
     tracking: string | null
     notes: string | null
   }
+  initialArticles?: ArticleRow[]
   fournisseurs?: string[]
   onClose: () => void
 }
@@ -39,7 +40,7 @@ const fraisVide = (): FraisRow => ({ type: 'Douane', montant: '', description: '
 const inputClass = "w-full bg-[#0f0f18] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/30 transition-colors"
 const inputSmClass = "w-full bg-transparent border border-white/10 rounded-md px-2.5 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-purple-500/60 transition-colors"
 
-export default function FormulaireCommande({ commande, fournisseurs = [], onClose }: Props) {
+export default function FormulaireCommande({ commande, initialArticles, fournisseurs = [], onClose }: Props) {
   const [isPending, startTransition] = useTransition()
   const isEdit = !!commande
 
@@ -51,7 +52,7 @@ export default function FormulaireCommande({ commande, fournisseurs = [], onClos
     notes: commande?.notes ?? '',
   })
 
-  const [articles, setArticles] = useState<ArticleRow[]>([articleVide()])
+  const [articles, setArticles] = useState<ArticleRow[]>(initialArticles ?? [articleVide()])
   const [frais, setFrais] = useState<FraisRow[]>([])
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(!!(commande?.tracking || commande?.notes))

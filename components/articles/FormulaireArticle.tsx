@@ -33,11 +33,16 @@ interface Props {
   onClose: () => void
 }
 
+type CommandeOption = { id: number; fournisseur: string; date: string }
+
 export default function FormulaireArticle({ commandeId, article, onClose }: Props) {
   const [isPending, startTransition] = useTransition()
   const isEdit = !!article
   const [historique, setHistorique] = useState<HistoriqueEntry[]>([])
   const [showHistorique, setShowHistorique] = useState(false)
+  const [showDeplacer, setShowDeplacer] = useState(false)
+  const [commandesDisponibles, setCommandesDisponibles] = useState<CommandeOption[]>([])
+  const [targetCommandeId, setTargetCommandeId] = useState<number>(commandeId)
 
   useEffect(() => {
     if (!isEdit) return
@@ -46,6 +51,14 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
       .then(setHistorique)
       .catch(() => {})
   }, [isEdit, article?.id])
+
+  useEffect(() => {
+    if (!showDeplacer || commandesDisponibles.length > 0) return
+    fetch('/api/commandes')
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: CommandeOption[]) => setCommandesDisponibles(data))
+      .catch(() => {})
+  }, [showDeplacer, commandesDisponibles.length])
 
   const [form, setForm] = useState({
     marque: article?.marque ?? '',
@@ -66,7 +79,7 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, commandeId }),
+        body: JSON.stringify({ ...form, commandeId: targetCommandeId }),
       })
       if (!res.ok) {
         toast.error(isEdit ? 'Erreur lors de la modification' : "Erreur lors de l'ajout")
@@ -140,6 +153,37 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
         <label className="block text-xs font-medium text-white/60 mb-1.5">Notes</label>
         <textarea rows={2} placeholder="Notes..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className={`${inputClass} resize-none`} />
       </div>
+
+      {isEdit && (
+        <div className="pt-1 border-t border-white/5">
+          <button
+            type="button"
+            onClick={() => setShowDeplacer((v) => !v)}
+            className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-3.5 h-3.5 transition-transform ${showDeplacer ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            Déplacer vers une autre commande
+          </button>
+          {showDeplacer && (
+            <div className="mt-2">
+              <select
+                value={targetCommandeId}
+                onChange={(e) => setTargetCommandeId(Number(e.target.value))}
+                className={inputClass}
+              >
+                {commandesDisponibles.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.fournisseur} — {new Date(c.date).toLocaleDateString('fr-FR')}
+                    {c.id === commandeId ? ' (actuelle)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
 
       {isEdit && historique.length > 0 && (
         <div className="pt-1">

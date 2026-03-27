@@ -62,12 +62,40 @@ export default function CommandeDetailPage() {
     const { default: autoTable } = await import('jspdf-autotable')
 
     const doc = new jsPDF()
+    const articlesVendusLocal = commande.articles.filter((a) => a.prixVenteReel)
+    const totalAchatVendusLocal = articlesVendusLocal.reduce((acc, a) => acc + a.prixAchat, 0)
     const totalAchatLocal = commande.articles.reduce((acc, a) => acc + a.prixAchat, 0)
     const totalFraisLocal = commande.frais.reduce((acc, f) => acc + f.montant, 0)
-    const totalVentesLocal = commande.articles
-      .filter((a) => a.prixVenteReel)
-      .reduce((acc, a) => acc + (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0), 0)
-    const beneficeLocal = totalVentesLocal - totalAchatLocal - totalFraisLocal
+    const totalVentesLocal = articlesVendusLocal.reduce((acc, a) => acc + (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0), 0)
+    const beneficeLocal = totalVentesLocal - totalAchatVendusLocal - totalFraisLocal
+
+    // Charger les photos (URL Uploadthing ou base64 legacy)
+    const photoMap: Record<number, string | null> = {}
+    await Promise.all(
+      commande.articles.map(async (a) => {
+        const photos = (a as { photos?: string[] }).photos ?? []
+        if (photos.length === 0) { photoMap[a.id] = null; return }
+        const first = photos[0]
+        if (first.startsWith('data:')) {
+          photoMap[a.id] = first
+        } else {
+          try {
+            const res = await fetch(first)
+            const blob = await res.blob()
+            photoMap[a.id] = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(reader.result as string)
+              reader.onerror = reject
+              reader.readAsDataURL(blob)
+            })
+          } catch {
+            photoMap[a.id] = null
+          }
+        }
+      })
+    )
+
+    const hasPhotos = commande.articles.some((a) => photoMap[a.id])
 
     // En-tête
     doc.setFontSize(18)
@@ -83,16 +111,15 @@ export default function CommandeDetailPage() {
     const startY = commande.tracking ? 48 : 42
     doc.setFontSize(10)
     doc.setTextColor(40)
-    const kpis = [
-      ['Total achat', `${totalAchatLocal.toFixed(2)} €`],
-      ['Total frais', `${totalFraisLocal.toFixed(2)} €`],
-      ['Revenus ventes', `${totalVentesLocal.toFixed(2)} €`],
-      ['Bénéfice', `${beneficeLocal.toFixed(2)} €`],
-    ]
     autoTable(doc, {
       startY,
       head: [],
-      body: kpis,
+      body: [
+        ['Total achat', `${totalAchatLocal.toFixed(2)} €`],
+        ['Total frais', `${totalFraisLocal.toFixed(2)} €`],
+        ['Revenus ventes', `${totalVentesLocal.toFixed(2)} €`],
+        ['Bénéfice', `${beneficeLocal.toFixed(2)} €`],
+      ],
       columnStyles: { 0: { cellWidth: 50 }, 1: { halign: 'right' } },
       theme: 'plain',
       styles: { fontSize: 10, cellPadding: 2 },
@@ -103,21 +130,36 @@ export default function CommandeDetailPage() {
     doc.setFontSize(12)
     doc.setTextColor(40)
     doc.text('Articles', 14, afterKpis)
+
+    const IMG_SIZE = 18 // mm
+    const colPhoto = hasPhotos ? [{ cellWidth: IMG_SIZE + 4 }] : []
+    const headPhoto = hasPhotos ? ['Photo'] : []
+
     autoTable(doc, {
       startY: afterKpis + 4,
-      head: [['Marque', 'Modèle', 'État', 'N° série', 'Statut', 'Prix achat', 'Prix vendu', 'Bénéfice']],
+      head: [[...headPhoto, 'Marque', 'Modèle', 'État', 'N° série', 'Statut', 'Prix achat', 'Prix vendu', 'Bénéfice']],
       body: commande.articles.map((a) => {
         const ben = a.prixVenteReel ? (a.prixVenteReel - (a.fraisVente ?? 0) - a.prixAchat).toFixed(2) + ' €' : '—'
-        return [
-          a.marque, a.modele, a.etat, a.refFournisseur ?? '—', a.statut,
-          `${a.prixAchat.toFixed(2)} €`,
-          a.prixVenteReel ? `${a.prixVenteReel.toFixed(2)} €` : '—',
-          ben,
-        ]
+        const row = [a.marque, a.modele, a.etat, a.refFournisseur ?? '—', a.statut, `${a.prixAchat.toFixed(2)} €`, a.prixVenteReel ? `${a.prixVenteReel.toFixed(2)} €` : '—', ben]
+        return hasPhotos ? ['', ...row] : row
       }),
       theme: 'striped',
       headStyles: { fillColor: [80, 40, 120] },
       styles: { fontSize: 8 },
+      columnStyles: hasPhotos ? { 0: colPhoto[0] } : {},
+      rowPageBreak: 'avoid',
+      didDrawCell: (data) => {
+        if (!hasPhotos || data.section !== 'body' || data.column.index !== 0) return
+        const article = commande.articles[data.row.index]
+        const photo = photoMap[article.id]
+        if (!photo) return
+        try {
+          const fmt = photo.startsWith('data:image/png') ? 'PNG' : 'JPEG'
+          doc.addImage(photo, fmt, data.cell.x + 1, data.cell.y + 1, IMG_SIZE, IMG_SIZE)
+        } catch {
+          // Photo corrompue — on ignore
+        }
+      },
     })
 
     // Table frais
@@ -189,12 +231,15 @@ export default function CommandeDetailPage() {
     )
   }
 
-  const totalAchat = commande.articles.reduce((acc, a) => acc + a.prixAchat, 0)
   const totalFrais = commande.frais.reduce((acc, f) => acc + f.montant, 0)
-  const totalVentes = commande.articles
-    .filter((a) => a.prixVenteReel)
-    .reduce((acc, a) => acc + (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0), 0)
-  const benefice = totalVentes - totalAchat - totalFrais
+  const articlesVendus = commande.articles.filter((a) => a.prixVenteReel)
+  const totalAchatVendus = articlesVendus.reduce((acc, a) => acc + a.prixAchat, 0)
+  const totalAchat = commande.articles.reduce((acc, a) => acc + a.prixAchat, 0)
+  const totalVentes = articlesVendus.reduce((acc, a) => acc + (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0), 0)
+  // Bénéfice : frais répartis uniquement sur les articles vendus
+  const benefice = totalVentes - totalAchatVendus - totalFrais
+  // Frais par article vendu (pour la colonne marge)
+  const fraisParArticleVendu = articlesVendus.length > 0 ? totalFrais / articlesVendus.length : 0
 
   return (
     <div className="page-enter p-4 sm:p-6 lg:p-8">
@@ -238,7 +283,7 @@ export default function CommandeDetailPage() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {[
-          { label: 'Total achat', value: `${totalAchat.toFixed(2)} €`, sub: `${commande.articles.length} articles` },
+          { label: 'Total achat', value: `${totalAchat.toFixed(2)} €`, sub: `${commande.articles.length} article${commande.articles.length > 1 ? 's' : ''}` },
           { label: 'Frais', value: `${totalFrais.toFixed(2)} €`, sub: `${commande.frais.length} ligne(s)` },
           { label: 'Revenus ventes', value: `${totalVentes.toFixed(2)} €`, sub: 'net de frais' },
           { label: 'Bénéfice', value: `${benefice.toFixed(2)} €`, sub: benefice >= 0 ? '✓ Positif' : '⚠ Négatif', highlight: true },
@@ -283,7 +328,7 @@ export default function CommandeDetailPage() {
               <div className="sm:hidden divide-y divide-white/5">
                 {commande.articles.map((article) => {
                   const marge = article.prixVenteReel
-                    ? article.prixVenteReel - (article.fraisVente ?? 0) - article.prixAchat
+                    ? article.prixVenteReel - (article.fraisVente ?? 0) - article.prixAchat - fraisParArticleVendu
                     : null
                   return (
                     <div key={article.id} className="px-4 py-3.5">
@@ -347,7 +392,7 @@ export default function CommandeDetailPage() {
                     <th className="text-left px-4 py-2.5 text-xs text-white/40">Article</th>
                     <th className="text-left px-4 py-2.5 text-xs text-white/40">État</th>
                     <th className="text-right px-4 py-2.5 text-xs text-white/40">Achat</th>
-                    <th className="text-right px-4 py-2.5 text-xs text-white/40">Marge</th>
+                    <th className="text-right px-4 py-2.5 text-xs text-white/40">Marge <span className="text-white/20 normal-case font-normal">(frais inclus)</span></th>
                     <th className="text-left px-4 py-2.5 text-xs text-white/40">Statut</th>
                     <th className="text-right px-4 py-2.5 text-xs text-white/40">Actions</th>
                   </tr>

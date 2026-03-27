@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -10,13 +11,86 @@ import { beneficeArticle, beneficePotentielArticle, dureeVenteJours } from '@/li
 import type { Article, Commande, Frais } from '@prisma/client'
 
 type ArticleAvecCommande = Article & { commande: Commande & { frais: Frais[] } }
+type Periode = 'mois' | '3mois' | '6mois' | 'annee' | 'tout'
 
 const COLORS = ['#a855f7', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
 
+const PERIODES: { value: Periode; label: string }[] = [
+  { value: 'mois', label: 'Ce mois' },
+  { value: '3mois', label: '3 mois' },
+  { value: '6mois', label: '6 mois' },
+  { value: 'annee', label: 'Cette année' },
+  { value: 'tout', label: 'Tout' },
+]
+
+function getDebut(periode: Periode): Date | null {
+  const now = new Date()
+  if (periode === 'mois') return new Date(now.getFullYear(), now.getMonth(), 1)
+  if (periode === '3mois') return new Date(now.getFullYear(), now.getMonth() - 3, 1)
+  if (periode === '6mois') return new Date(now.getFullYear(), now.getMonth() - 6, 1)
+  if (periode === 'annee') return new Date(now.getFullYear(), 0, 1)
+  return null
+}
+
+function getDebutPrecedente(periode: Periode): { debut: Date; fin: Date } | null {
+  const now = new Date()
+  if (periode === 'mois') return {
+    debut: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+    fin: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59),
+  }
+  if (periode === '3mois') return {
+    debut: new Date(now.getFullYear(), now.getMonth() - 6, 1),
+    fin: new Date(now.getFullYear(), now.getMonth() - 3, 0, 23, 59, 59),
+  }
+  if (periode === '6mois') return {
+    debut: new Date(now.getFullYear(), now.getMonth() - 12, 1),
+    fin: new Date(now.getFullYear(), now.getMonth() - 6, 0, 23, 59, 59),
+  }
+  if (periode === 'annee') return {
+    debut: new Date(now.getFullYear() - 1, 0, 1),
+    fin: new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59),
+  }
+  return null
+}
+
+function variation(actuel: number, precedent: number): number | null {
+  if (precedent === 0) return null
+  return ((actuel - precedent) / Math.abs(precedent)) * 100
+}
+
+function VariationBadge({ pct }: { pct: number | null }) {
+  if (pct === null) return null
+  const pos = pct >= 0
+  return (
+    <span className={`text-xs font-medium ${pos ? 'text-green-400' : 'text-red-400'}`}>
+      {pos ? '↑' : '↓'} {Math.abs(pct).toFixed(0)}%
+    </span>
+  )
+}
+
 export default function StatistiquesPage() {
+  return (
+    <Suspense>
+      <StatistiquesInner />
+    </Suspense>
+  )
+}
+
+function StatistiquesInner() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [articles, setArticles] = useState<ArticleAvecCommande[]>([])
   const [loading, setLoading] = useState(true)
   const [coutAbonnementTotal, setCoutAbonnementTotal] = useState(0)
+
+  const periodeParam = (searchParams.get('periode') ?? 'tout') as Periode
+  const periode: Periode = PERIODES.some(p => p.value === periodeParam) ? periodeParam : 'tout'
+
+  const setPeriode = (p: Periode) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('periode', p)
+    router.replace(`?${params.toString()}`)
+  }
 
   useEffect(() => {
     Promise.all([
@@ -32,38 +106,76 @@ export default function StatistiquesPage() {
     })
   }, [])
 
-  const vendus = useMemo(() => articles.filter((a) => a.statut === 'Vendu' && a.prixVenteReel), [articles])
+  const vendusAll = useMemo(() => articles.filter((a) => a.statut === 'Vendu' && a.prixVenteReel), [articles])
   const enVente = useMemo(() => articles.filter((a) => a.statut === 'En vente' && a.prixVente), [articles])
   const enStock = useMemo(() => articles.filter((a) => a.statut === 'En stock' || a.statut === 'En vente'), [articles])
 
-  // ── KPIs globaux (Option B : frais commande déduits en global, pas par article) ──────────
-  const caTotal = useMemo(() => vendus.reduce((acc, a) => acc + (a.prixVenteReel ?? 0), 0), [vendus])
-  const fraisVenteTotal = useMemo(() => vendus.reduce((acc, a) => acc + (a.fraisVente ?? 0), 0), [vendus])
-  const coutAchatVendus = useMemo(() => vendus.reduce((acc, a) => acc + a.prixAchat, 0), [vendus])
+  // ── Filtrage par période ────────────────────────────────────────────────────────────────
+  const debut = useMemo(() => getDebut(periode), [periode])
+  const precedente = useMemo(() => getDebutPrecedente(periode), [periode])
 
-  // Bénéfice brut = CA − achats − frais vente (par article, sans frais commande)
-  const beneficeBrut = useMemo(
-    () => vendus.reduce((acc, a) => acc + beneficeArticle(a.prixVenteReel ?? 0, a.prixAchat, a.fraisVente ?? 0), 0),
-    [vendus]
-  )
+  const vendus = useMemo(() => {
+    if (!debut) return vendusAll
+    return vendusAll.filter(a => a.dateVente && new Date(a.dateVente) >= debut!)
+  }, [vendusAll, debut])
 
-  // Total frais commandes payés (toutes commandes, pas juste celles avec des ventes)
+  const vendusPrecedents = useMemo(() => {
+    if (!precedente) return []
+    return vendusAll.filter(a =>
+      a.dateVente &&
+      new Date(a.dateVente) >= precedente!.debut &&
+      new Date(a.dateVente) <= precedente!.fin
+    )
+  }, [vendusAll, precedente])
+
+  // ── Frais commandes (filtrés sur les commandes avec ventes dans la période) ────────────
   const fraisCommandeTotal = useMemo(() => {
+    const source = debut ? vendus : articles
     const commandesVues = new Set<number>()
-    return articles.reduce((acc, a) => {
+    return source.reduce((acc, a) => {
+      if (commandesVues.has(a.commandeId)) return acc
+      commandesVues.add(a.commandeId)
+      // Pour "tout", on prend tous les frais de toutes les commandes via articles
+      if (!debut) return acc + a.commande.frais.reduce((s, f) => s + f.montant, 0)
+      return acc + a.commande.frais.reduce((s, f) => s + f.montant, 0)
+    }, 0)
+  }, [articles, vendus, debut])
+
+  const fraisCommandePrecedent = useMemo(() => {
+    if (!precedente) return 0
+    const commandesVues = new Set<number>()
+    return vendusPrecedents.reduce((acc, a) => {
       if (commandesVues.has(a.commandeId)) return acc
       commandesVues.add(a.commandeId)
       return acc + a.commande.frais.reduce((s, f) => s + f.montant, 0)
     }, 0)
-  }, [articles])
+  }, [vendusPrecedents, precedente])
 
-  // Bénéfice net = brut − frais commandes − abonnements
+  // ── KPIs période courante ──────────────────────────────────────────────────────────────
+  const caTotal = useMemo(() => vendus.reduce((acc, a) => acc + (a.prixVenteReel ?? 0), 0), [vendus])
+  const fraisVenteTotal = useMemo(() => vendus.reduce((acc, a) => acc + (a.fraisVente ?? 0), 0), [vendus])
+  const coutAchatVendus = useMemo(() => vendus.reduce((acc, a) => acc + a.prixAchat, 0), [vendus])
+  const beneficeBrut = useMemo(
+    () => vendus.reduce((acc, a) => acc + beneficeArticle(a.prixVenteReel ?? 0, a.prixAchat, a.fraisVente ?? 0), 0),
+    [vendus]
+  )
   const beneficeNet = useMemo(
     () => beneficeBrut - fraisCommandeTotal - coutAbonnementTotal,
     [beneficeBrut, fraisCommandeTotal, coutAbonnementTotal]
   )
   const margeGlobale = caTotal > 0 ? ((beneficeNet / caTotal) * 100).toFixed(1) : '0'
   const panierMoyen = vendus.length > 0 ? caTotal / vendus.length : 0
+
+  // ── KPIs période précédente (pour variation %) ────────────────────────────────────────
+  const caPrecedent = useMemo(() => vendusPrecedents.reduce((acc, a) => acc + (a.prixVenteReel ?? 0), 0), [vendusPrecedents])
+  const beneficeBrutPrecedent = useMemo(
+    () => vendusPrecedents.reduce((acc, a) => acc + beneficeArticle(a.prixVenteReel ?? 0, a.prixAchat, a.fraisVente ?? 0), 0),
+    [vendusPrecedents]
+  )
+  const beneficeNetPrecedent = useMemo(
+    () => beneficeBrutPrecedent - fraisCommandePrecedent - coutAbonnementTotal,
+    [beneficeBrutPrecedent, fraisCommandePrecedent, coutAbonnementTotal]
+  )
 
   // ── Stock & potentiel ───────────────────────────────────────────────────────────────────
   const valeurStock = useMemo(() => enStock.reduce((acc, a) => acc + a.prixAchat, 0), [enStock])
@@ -73,7 +185,7 @@ export default function StatistiquesPage() {
     [enVente]
   )
 
-  // ── Durée moyenne de vente (jours) ─────────────────────────────────────────────────────
+  // ── Durée moyenne de vente ──────────────────────────────────────────────────────────────
   const dureeMoyenneVente = useMemo(() => {
     const vendusAvecDates = vendus.filter((a) => a.dateVente && a.createdAt)
     if (vendusAvecDates.length === 0) return null
@@ -82,8 +194,6 @@ export default function StatistiquesPage() {
   }, [vendus])
 
   // ── Breakdowns ─────────────────────────────────────────────────────────────────────────
-
-  // Par marque — bénéfice brut (sans frais commande, non attribuables par marque)
   const parMarque = useMemo(() => Object.values(
     vendus.reduce<Record<string, { marque: string; ca: number; benefice: number; nb: number }>>((acc, a) => {
       if (!acc[a.marque]) acc[a.marque] = { marque: a.marque, ca: 0, benefice: 0, nb: 0 }
@@ -94,7 +204,6 @@ export default function StatistiquesPage() {
     }, {})
   ).sort((a, b) => b.benefice - a.benefice), [vendus])
 
-  // Par plateforme — CA + nb
   const parPlateforme = useMemo(() => Object.values(
     vendus.reduce<Record<string, { name: string; nb: number; ca: number }>>((acc, a) => {
       const p = a.plateforme ?? 'Autre'
@@ -105,7 +214,6 @@ export default function StatistiquesPage() {
     }, {})
   ).sort((a, b) => b.ca - a.ca), [vendus])
 
-  // Par fournisseur — bénéfice brut
   const parFournisseur = useMemo(() => Object.values(
     vendus.reduce<Record<string, { fournisseur: string; nb: number; ca: number; benefice: number }>>((acc, a) => {
       const f = a.commande.fournisseur
@@ -117,9 +225,8 @@ export default function StatistiquesPage() {
     }, {})
   ).sort((a, b) => b.ca - a.ca), [vendus])
 
-  // Évolution mensuelle — bénéfice brut
   const parMois = useMemo(() => {
-    const map = vendus.reduce<Record<string, { mois: string; ca: number; benefice: number }>>((acc, a) => {
+    const map = vendusAll.reduce<Record<string, { mois: string; ca: number; benefice: number }>>((acc, a) => {
       if (!a.dateVente) return acc
       const d = new Date(a.dateVente)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -132,7 +239,7 @@ export default function StatistiquesPage() {
     return Object.entries(map)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([, val]) => val)
-  }, [vendus])
+  }, [vendusAll])
 
   if (loading) return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -175,25 +282,84 @@ export default function StatistiquesPage() {
 
   return (
     <div className="page-enter p-4 sm:p-6 lg:p-8">
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-xl sm:text-2xl font-bold text-white">Statistiques</h1>
-        <p className="text-sm text-white/40 mt-1">Vue d&apos;ensemble de la performance</p>
+      {/* Header + sélecteur période */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 sm:mb-8">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Statistiques</h1>
+          <p className="text-sm text-white/40 mt-1">Vue d&apos;ensemble de la performance</p>
+        </div>
+        <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 self-start sm:self-auto">
+          {PERIODES.map((p) => (
+            <button
+              key={p.value}
+              onClick={() => setPeriode(p.value)}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors font-medium ${
+                periode === p.value
+                  ? 'bg-purple-600 text-white'
+                  : 'text-white/50 hover:text-white/80'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* KPIs globaux */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-4">
         {[
-          { label: "Chiffre d'affaires", value: `${caTotal.toFixed(0)} €`, sub: `${vendus.length} ventes`, color: 'text-white' },
-          { label: 'Bénéfice net', value: `${beneficeNet.toFixed(0)} €`, sub: 'après tous frais', color: beneficeNet >= 0 ? 'text-green-400' : 'text-red-400' },
-          { label: 'Marge globale', value: `${margeGlobale}%`, sub: 'sur CA', color: Number(margeGlobale) >= 20 ? 'text-green-400' : 'text-yellow-400' },
-          { label: 'Panier moyen', value: `${panierMoyen.toFixed(0)} €`, sub: 'par vente', color: 'text-white' },
-          { label: 'Durée moy. vente', value: dureeMoyenneVente !== null ? `${dureeMoyenneVente}j` : '—', sub: 'de la réception à la vente', color: dureeMoyenneVente !== null && dureeMoyenneVente <= 30 ? 'text-green-400' : 'text-yellow-400' },
-          { label: 'Stock en cours', value: `${valeurStock.toFixed(0)} €`, sub: `${enStock.length} articles`, color: 'text-amber-400' },
+          {
+            label: "Chiffre d'affaires",
+            value: `${caTotal.toFixed(0)} €`,
+            sub: `${vendus.length} vente${vendus.length > 1 ? 's' : ''}`,
+            color: 'text-white',
+            variation: variation(caTotal, caPrecedent),
+          },
+          {
+            label: 'Bénéfice net',
+            value: `${beneficeNet.toFixed(0)} €`,
+            sub: 'après tous frais',
+            color: beneficeNet >= 0 ? 'text-green-400' : 'text-red-400',
+            variation: variation(beneficeNet, beneficeNetPrecedent),
+          },
+          {
+            label: 'Marge globale',
+            value: `${margeGlobale}%`,
+            sub: 'sur CA',
+            color: Number(margeGlobale) >= 20 ? 'text-green-400' : 'text-yellow-400',
+            variation: null,
+          },
+          {
+            label: 'Panier moyen',
+            value: `${panierMoyen.toFixed(0)} €`,
+            sub: 'par vente',
+            color: 'text-white',
+            variation: null,
+          },
+          {
+            label: 'Durée moy. vente',
+            value: dureeMoyenneVente !== null ? `${dureeMoyenneVente}j` : '—',
+            sub: 'réception → vente',
+            color: dureeMoyenneVente !== null && dureeMoyenneVente <= 30 ? 'text-green-400' : 'text-yellow-400',
+            variation: null,
+          },
+          {
+            label: 'Stock en cours',
+            value: `${valeurStock.toFixed(0)} €`,
+            sub: `${enStock.length} articles`,
+            color: 'text-amber-400',
+            variation: null,
+          },
         ].map((kpi) => (
           <div key={kpi.label} className="bg-white/3 border border-white/5 rounded-xl p-4">
             <p className="text-xs text-white/40 uppercase tracking-wider mb-1 leading-tight">{kpi.label}</p>
             <p className={`text-xl font-bold ${kpi.color}`}>{kpi.value}</p>
-            <p className="text-xs text-white/30 mt-0.5">{kpi.sub}</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <p className="text-xs text-white/30">{kpi.sub}</p>
+              {kpi.variation !== null && periode !== 'tout' && (
+                <VariationBadge pct={kpi.variation} />
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -253,15 +419,15 @@ export default function StatistiquesPage() {
 
       {vendus.length === 0 ? (
         <div className="text-center py-20 text-white/30">
-          <p className="text-sm">Aucune vente enregistrée pour le moment</p>
+          <p className="text-sm">Aucune vente {periode !== 'tout' ? 'sur cette période' : 'enregistrée pour le moment'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
 
-          {/* Évolution CA / Bénéfice */}
+          {/* Évolution CA / Bénéfice — toujours all-time pour avoir la courbe complète */}
           <div className="sm:col-span-2 bg-white/3 border border-white/5 rounded-xl p-5">
             <h2 className="text-sm font-semibold text-white mb-1">Évolution mensuelle</h2>
-            <p className="text-xs text-white/30 mb-5">CA et bénéfice brut (hors frais commandes)</p>
+            <p className="text-xs text-white/30 mb-5">CA et bénéfice brut (toutes périodes confondues)</p>
             <div className="h-40 sm:h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={parMois}>
