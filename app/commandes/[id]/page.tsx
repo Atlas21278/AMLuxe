@@ -189,12 +189,15 @@ export default function CommandeDetailPage() {
     )
   }
 
-  const totalAchat = commande.articles.reduce((acc, a) => acc + a.prixAchat, 0)
   const totalFrais = commande.frais.reduce((acc, f) => acc + f.montant, 0)
-  const totalVentes = commande.articles
-    .filter((a) => a.prixVenteReel)
-    .reduce((acc, a) => acc + (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0), 0)
-  const benefice = totalVentes - totalAchat - totalFrais
+  const articlesVendus = commande.articles.filter((a) => a.prixVenteReel)
+  const totalAchatVendus = articlesVendus.reduce((acc, a) => acc + a.prixAchat, 0)
+  const totalAchat = commande.articles.reduce((acc, a) => acc + a.prixAchat, 0)
+  const totalVentes = articlesVendus.reduce((acc, a) => acc + (a.prixVenteReel ?? 0) - (a.fraisVente ?? 0), 0)
+  // Bénéfice : frais répartis uniquement sur les articles vendus
+  const benefice = totalVentes - totalAchatVendus - totalFrais
+  // Frais par article vendu (pour la colonne marge)
+  const fraisParArticleVendu = articlesVendus.length > 0 ? totalFrais / articlesVendus.length : 0
 
   return (
     <div className="page-enter p-4 sm:p-6 lg:p-8">
@@ -238,7 +241,7 @@ export default function CommandeDetailPage() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {[
-          { label: 'Total achat', value: `${totalAchat.toFixed(2)} €`, sub: `${commande.articles.length} articles` },
+          { label: 'Total achat', value: `${totalAchat.toFixed(2)} €`, sub: `${commande.articles.length} article${commande.articles.length > 1 ? 's' : ''}` },
           { label: 'Frais', value: `${totalFrais.toFixed(2)} €`, sub: `${commande.frais.length} ligne(s)` },
           { label: 'Revenus ventes', value: `${totalVentes.toFixed(2)} €`, sub: 'net de frais' },
           { label: 'Bénéfice', value: `${benefice.toFixed(2)} €`, sub: benefice >= 0 ? '✓ Positif' : '⚠ Négatif', highlight: true },
@@ -283,7 +286,7 @@ export default function CommandeDetailPage() {
               <div className="sm:hidden divide-y divide-white/5">
                 {commande.articles.map((article) => {
                   const marge = article.prixVenteReel
-                    ? article.prixVenteReel - (article.fraisVente ?? 0) - article.prixAchat
+                    ? article.prixVenteReel - (article.fraisVente ?? 0) - article.prixAchat - fraisParArticleVendu
                     : null
                   return (
                     <div key={article.id} className="px-4 py-3.5">
@@ -347,7 +350,7 @@ export default function CommandeDetailPage() {
                     <th className="text-left px-4 py-2.5 text-xs text-white/40">Article</th>
                     <th className="text-left px-4 py-2.5 text-xs text-white/40">État</th>
                     <th className="text-right px-4 py-2.5 text-xs text-white/40">Achat</th>
-                    <th className="text-right px-4 py-2.5 text-xs text-white/40">Marge</th>
+                    <th className="text-right px-4 py-2.5 text-xs text-white/40">Marge <span className="text-white/20 normal-case font-normal">(frais inclus)</span></th>
                     <th className="text-left px-4 py-2.5 text-xs text-white/40">Statut</th>
                     <th className="text-right px-4 py-2.5 text-xs text-white/40">Actions</th>
                   </tr>
