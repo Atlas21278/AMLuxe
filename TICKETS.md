@@ -824,7 +824,7 @@ Si un article est saisi dans la mauvaise commande, il n'y a aucun moyen de le co
 
 ---
 
-### T-116 · Export PDF sans photos articles
+### ✅ T-116 · Export PDF sans photos articles
 **Fichier** : `app/commandes/[id]/page.tsx` (export PDF jsPDF)
 Le PDF généré par commande contient les KPIs et le tableau des articles mais pas leurs photos, ce qui limite son utilité comme fiche produit.
 **Fix** : Inclure la première photo de chaque article (si disponible) dans le PDF, après la migration vers Uploadthing (T-102) pour avoir des URLs accessibles.
