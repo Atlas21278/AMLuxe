@@ -861,14 +861,12 @@ Overkill pour usage personnel.
 
 ## 🟡 Dette technique (2026-03-26)
 
-### T-121 · `framer-motion` importé uniquement pour NavigationProgress
-**Fichier** : `components/ui/NavigationProgress.tsx`
-La lib `framer-motion` (~150kb gzipped) est une dépendance lourde utilisée uniquement pour animer la barre de progression de navigation.
-**Fix** : Remplacer par une implémentation CSS pure avec `transition` et `@keyframes`, ou utiliser `motion` (nouveau package minimal de Framer Motion). Supprimer `framer-motion` des dépendances.
+### ⛔ T-121 · `framer-motion` — SKIP
+NavigationProgress utilise déjà du CSS pur. framer-motion est utilisé dans `app/objectifs/page.tsx` (motion, useInView, AnimatePresence) — trop risqué à remplacer.
 
 ---
 
-### T-122 · `zod` installé mais jamais utilisé dans les API routes
+### ⛔ T-122 · `zod` installé mais jamais utilisé dans les API routes
 **Fichier** : toutes les routes `app/api/`
 Zod est dans les dépendances mais les API routes valident les inputs manuellement (checks `if (!fournisseur)` etc.) sans schéma structuré. Risque de laisser passer des données malformées.
 **Fix** : Créer des schémas Zod pour chaque payload (`CreateCommandeSchema`, `UpdateArticleSchema`, etc.) et les utiliser en début de chaque route handler. Retourner des erreurs 400 formatées.
