@@ -1,9 +1,20 @@
 'use client'
 
+import { useState } from 'react'
+import { toast } from 'sonner'
 import { detecterTransporteur } from '@/lib/tracking'
 
 export default function TrackingWidget({ numero }: { numero: string }) {
   const transporteur = detecterTransporteur(numero)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(numero).then(() => {
+      setCopied(true)
+      toast.success('Numéro copié !')
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   return (
     <div className="mt-2 rounded-xl border border-white/8 bg-white/3 overflow-hidden">
@@ -25,6 +36,22 @@ export default function TrackingWidget({ numero }: { numero: string }) {
             {numero}
           </a>
         </div>
+
+        <button
+          onClick={handleCopy}
+          className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors shrink-0"
+          title="Copier le numéro"
+        >
+          {copied ? (
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          )}
+        </button>
 
         <a
           href={transporteur.urlSuivi(numero)}
