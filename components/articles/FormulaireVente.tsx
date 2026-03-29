@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useEffect } from 'react'
 import { toast } from 'sonner'
 import type { Article } from '@prisma/client'
 import { PLATEFORMES } from '@/constants/statuts'
@@ -13,6 +13,22 @@ interface Props {
 export default function FormulaireVente({ article, onClose }: Props) {
   const [isPending, startTransition] = useTransition()
   const [mode, setMode] = useState<'vente' | 'vendu'>('vente')
+  const [prixSuggere, setPrixSuggere] = useState<number | null>(null)
+
+  // Calcule un prix suggéré basé sur la marge historique de la même marque
+  useEffect(() => {
+    fetch(`/api/articles?page=1&limit=50&statut=Vendu&marque=${encodeURIComponent(article.marque)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const vendus: Article[] = data?.data ?? []
+        const valides = vendus.filter(a => a.prixVenteReel && a.prixAchat > 0)
+        if (valides.length < 2) return
+        const ratioMoyen = valides.reduce((acc, a) => acc + (a.prixVenteReel ?? 0) / a.prixAchat, 0) / valides.length
+        // Arrondi à la dizaine la plus proche
+        setPrixSuggere(Math.round(article.prixAchat * ratioMoyen / 10) * 10)
+      })
+      .catch(() => {})
+  }, [article.marque, article.prixAchat])
 
   const [form, setForm] = useState({
     prixVente: article.prixVente?.toString() ?? '',
@@ -105,11 +121,22 @@ export default function FormulaireVente({ article, onClose }: Props) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-white/60 mb-1.5">
-              Prix {mode === 'vente' ? 'annoncé' : 'affiché'} (€)
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-medium text-white/60">
+                Prix {mode === 'vente' ? 'annoncé' : 'affiché'} (€)
+              </label>
+              {prixSuggere && !form.prixVente && (
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, prixVente: prixSuggere.toString() })}
+                  className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                >
+                  suggéré {prixSuggere} €
+                </button>
+              )}
+            </div>
             <input
               type="number" step="0.01" min="0" placeholder="0.00"
               value={form.prixVente}
@@ -139,7 +166,7 @@ export default function FormulaireVente({ article, onClose }: Props) {
         {/* Champs vente finale — uniquement si mode "vendu" */}
         {mode === 'vendu' && (
           <>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-white/60 mb-1.5">Prix encaissé (€) *</label>
                 <input
