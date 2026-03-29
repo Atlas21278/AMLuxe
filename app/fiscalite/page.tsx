@@ -60,9 +60,9 @@ function LigneCR({ label, valeur, bold, indent, separator, positive }: {
     ? (valeur >= 0 ? 'text-red-100' : 'text-red-400')
     : (positive ? 'text-green-400' : 'text-red-400')
   return (
-    <div className={`flex items-center justify-between py-2.5 ${separator ? 'border-t border-red-500/20 mt-1' : ''} ${indent ? 'pl-4' : ''}`}>
-      <span className={`text-sm ${bold ? 'font-semibold text-red-100' : 'text-red-200/50'}`}>{label}</span>
-      <span className={`text-sm font-mono ${bold ? 'font-bold ' + couleur : 'text-red-200/70'}`}>
+    <div className={`flex items-center justify-between py-2.5 ${separator ? 'border-t border-red-500/30 mt-1' : ''} ${indent ? 'pl-4' : ''}`}>
+      <span className={`text-sm ${bold ? 'font-semibold text-white' : 'text-red-200/80'}`}>{label}</span>
+      <span className={`text-sm font-mono ${bold ? 'font-bold ' + couleur : 'text-red-100/90'}`}>
         {valeur >= 0 ? '' : '−'}{fmt(Math.abs(valeur))} €
       </span>
     </div>
@@ -168,6 +168,8 @@ export default function FiscalitePage() {
   const [abonnements, setAbonnements] = useState<AbonnementMensuel[]>([])
   const [depenses, setDepenses] = useState<DepensePro[]>([])
   const [loading, setLoading] = useState(true)
+  const [introReady, setIntroReady] = useState(false)
+  const [introProgress, setIntroProgress] = useState(0)
   const [periode, setPeriode] = useState<Periode>('annee')
   const [persoDebut, setPersoDebut] = useState('')
   const [persoFin, setPersoFin] = useState('')
@@ -175,6 +177,22 @@ export default function FiscalitePage() {
   const [exportLoading, setExportLoading] = useState(false)
   const [modalDepense, setModalDepense] = useState<{ open: boolean; depense?: DepensePro | null }>({ open: false })
   const [tick, setTick] = useState(0)
+
+  // Intro : durée fixe de 3s, progress animée, révèle la page seulement quand les deux sont prêts
+  useEffect(() => {
+    const DUREE = 3000
+    const start = Date.now()
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - start
+      const pct = Math.min(100, (elapsed / DUREE) * 100)
+      setIntroProgress(pct)
+      if (pct >= 100) {
+        clearInterval(interval)
+        setIntroReady(true)
+      }
+    }, 30)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 1000)
@@ -395,17 +413,75 @@ export default function FiscalitePage() {
 
   const dossierNum = useMemo(() => `${new Date().getFullYear()}-${String(Math.abs(Math.sin(Date.now() / 1e10) * 999999 | 0)).padStart(6, '0')}`, [])
 
-  if (loading) {
+  if (loading || !introReady) {
+    const steps = [
+      { threshold: 0,  label: 'INITIALISATION DU CONTRÔLE...' },
+      { threshold: 15, label: 'ACCÈS AU DOSSIER FISCAL...' },
+      { threshold: 30, label: 'ANALYSE DES REVENUS DÉCLARÉS...' },
+      { threshold: 50, label: 'VÉRIFICATION DES COTISATIONS...' },
+      { threshold: 70, label: 'CALCUL DES MAJORATIONS ÉVENTUELLES...' },
+      { threshold: 88, label: 'COMPILATION DU RAPPORT...' },
+      { threshold: 97, label: 'ACCÈS AUTORISÉ.' },
+    ]
+    const currentLabel = [...steps].reverse().find(s => introProgress >= s.threshold)?.label ?? steps[0].label
+
     return (
       <>
         <style>{urssafStyles}</style>
-        <div className="min-h-screen bg-[#050001] flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <div className="text-red-500 text-4xl font-black tracking-widest urssaf-glitch" data-text="URSSAF">URSSAF</div>
-            <div className="text-red-500/60 text-xs font-mono tracking-widest animate-pulse">ANALYSE DU DOSSIER EN COURS...</div>
-            <div className="w-48 h-1 bg-red-900/30 rounded mx-auto overflow-hidden">
-              <div className="h-full bg-red-600 urssaf-scan-bar" />
+        <div className="min-h-screen bg-[#080001] flex items-center justify-center urssaf-grid relative overflow-hidden">
+          <div className="absolute inset-0 urssaf-scanline pointer-events-none" />
+          <div className="absolute inset-0 urssaf-vignette pointer-events-none" />
+
+          <div className="relative z-10 text-center space-y-8 w-full max-w-sm px-8">
+            {/* Logo */}
+            <div>
+              <div
+                className="text-5xl font-black tracking-[0.3em] text-red-500 urssaf-glitch mb-2"
+                data-text="URSSAF"
+              >
+                URSSAF
+              </div>
+              <p className="text-xs font-mono text-red-400/50 tracking-widest uppercase">
+                Contrôle fiscal automatisé
+              </p>
             </div>
+
+            {/* Barre de progression */}
+            <div className="space-y-3">
+              <div className="h-px w-full bg-red-900/30 relative overflow-hidden rounded">
+                <div
+                  className="absolute left-0 top-0 h-full bg-red-600 transition-none rounded"
+                  style={{ width: `${introProgress}%`, boxShadow: '0 0 8px rgba(220,38,38,0.8)' }}
+                />
+              </div>
+              <div className="flex justify-between text-xs font-mono text-red-900/60">
+                <span className="text-red-500/60 urssaf-blink">▶</span>
+                <span className="text-red-400/80">{Math.round(introProgress)}%</span>
+              </div>
+            </div>
+
+            {/* Étape courante */}
+            <div className="h-6">
+              <p className="text-xs font-mono text-red-400/80 tracking-widest">
+                {currentLabel}
+              </p>
+            </div>
+
+            {/* Log lignes fausses */}
+            <div className="text-left border border-red-900/20 rounded bg-black/40 p-3 space-y-1">
+              {steps.filter(s => introProgress >= s.threshold).slice(-4).map((s, i) => (
+                <p key={i} className="text-xs font-mono text-red-900/60">
+                  <span className="text-red-800/60">[{new Date().toLocaleTimeString('fr-FR')}]</span>{' '}
+                  <span className={i === steps.filter(s2 => introProgress >= s2.threshold).length - 1 ? 'text-red-400/80' : 'text-red-900/50'}>
+                    {s.label}
+                  </span>
+                </p>
+              ))}
+            </div>
+
+            <p className="text-xs font-mono text-red-900/30 tracking-widest">
+              NE PAS FERMER CETTE FENÊTRE
+            </p>
           </div>
         </div>
       </>
@@ -416,16 +492,18 @@ export default function FiscalitePage() {
     <>
       <style>{urssafStyles}</style>
 
-      {/* Background animé */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-[#050001]" />
+      <div className="relative min-h-screen overflow-hidden">
+
+      {/* Background animé — contenu dans la zone de page, pas fixed */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-[#080001]" />
         <div className="absolute inset-0 urssaf-grid" />
         <div className="absolute inset-0 urssaf-scanline" />
         <div className="absolute inset-0 urssaf-vignette" />
         <div className="absolute inset-0 urssaf-noise" />
       </div>
 
-      <div className="relative z-10 p-4 sm:p-6 lg:p-8 space-y-6 min-h-screen">
+      <div className="relative z-10 p-4 sm:p-6 lg:p-8 space-y-6">
 
         {/* En-tête URSSAF */}
         <div className="border border-red-500/30 rounded-xl bg-black/60 p-6 urssaf-card-glow">
@@ -433,8 +511,8 @@ export default function FiscalitePage() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <div className="urssaf-blink w-2 h-2 rounded-full bg-red-500" />
-                <span className="text-xs font-mono text-red-500/70 tracking-widest uppercase">Surveillance active</span>
-                <span className="text-xs font-mono text-red-900/80 tracking-widest">· Dossier n°{dossierNum}</span>
+                <span className="text-xs font-mono text-red-400 tracking-widest uppercase">Surveillance active</span>
+                <span className="text-xs font-mono text-red-500/70 tracking-widest">· Dossier n°{dossierNum}</span>
               </div>
               <h1
                 className="text-4xl sm:text-5xl font-black tracking-widest text-red-500 urssaf-glitch"
@@ -442,10 +520,10 @@ export default function FiscalitePage() {
               >
                 URSSAF
               </h1>
-              <p className="text-xs text-red-400/50 font-mono tracking-widest mt-1 uppercase">
+              <p className="text-xs text-red-300/70 font-mono tracking-widest mt-1 uppercase">
                 Union de Recouvrement des Cotisations de Sécurité Sociale et d'Allocations Familiales
               </p>
-              <p className="text-xs text-red-300/40 font-mono mt-2">{labelPeriode}</p>
+              <p className="text-xs text-red-300/70 font-mono mt-2">{labelPeriode}</p>
             </div>
             <div className="flex flex-col gap-2 items-end">
               <div className="flex items-center gap-2 text-xs font-mono text-red-500/50">
@@ -551,7 +629,7 @@ export default function FiscalitePage() {
           <div className="border border-red-500/20 rounded-xl bg-black/50 p-5 urssaf-card-hover">
             <div className="flex items-center gap-2 mb-1">
               <div className="w-1 h-4 bg-red-600 rounded" />
-              <h2 className="text-xs font-black font-mono text-red-400 tracking-widest uppercase">Compte de résultat</h2>
+              <h2 className="text-xs font-black font-mono text-red-300 tracking-widest uppercase">Compte de résultat</h2>
             </div>
             <p className="text-xs font-mono text-red-900/60 mb-4 pl-3">Exercice : {labelPeriode}</p>
             <div className="divide-y divide-red-900/30">
@@ -565,7 +643,7 @@ export default function FiscalitePage() {
               <LigneCR label="IS estimé (15 % / 25 %)" valeur={-isEstime} indent />
               <LigneCR label="— Résultat net estimé" valeur={resultatNet} bold separator positive={resultatNet >= 0} />
             </div>
-            <p className="text-xs font-mono text-red-900/50 mt-4 italic border-t border-red-900/20 pt-3">
+            <p className="text-xs font-mono text-red-400/60 mt-4 italic border-t border-red-900/30 pt-3">
               ⚠ Estimation indicative — conservez tous vos justificatifs
             </p>
           </div>
@@ -575,19 +653,19 @@ export default function FiscalitePage() {
             <div className="border border-red-500/20 rounded-xl bg-black/50 p-5 urssaf-card-hover">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-1 h-4 bg-red-600 rounded" />
-                <h2 className="text-xs font-black font-mono text-red-400 tracking-widest uppercase">Impôt sur les Sociétés — SAS</h2>
+                <h2 className="text-xs font-black font-mono text-red-300 tracking-widest uppercase">Impôt sur les Sociétés — SAS</h2>
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-red-200/50 font-mono text-xs">Base imposable</span>
+                  <span className="text-red-200/80 font-mono text-xs">Base imposable</span>
                   <span className="text-red-200 font-mono font-bold">{fmt(baseImposable)} €</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-red-200/40 font-mono text-xs">Taux réduit 15 % (≤ {fmt(IS_PLAFOND_REDUIT)} €)</span>
+                  <span className="text-red-200/80 font-mono text-xs">Taux réduit 15 % (≤ {fmt(IS_PLAFOND_REDUIT)} €)</span>
                   <span className="text-red-300/70 font-mono">{fmt(isPartReduite)} €</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-red-200/40 font-mono text-xs">Taux normal 25 %</span>
+                  <span className="text-red-200/80 font-mono text-xs">Taux normal 25 %</span>
                   <span className="text-red-300/70 font-mono">{fmt(isPartNormale)} €</span>
                 </div>
                 <div className="flex justify-between border-t border-red-500/20 pt-3">
@@ -608,11 +686,11 @@ export default function FiscalitePage() {
                 { label: 'RÉSULTAT NET', value: fmt(resultatNet) + ' €', sub: 'après IS estimé', color: resultatNet >= 0 },
               ].map((kpi, i) => (
                 <div key={i} className="border border-red-900/30 rounded-xl bg-black/40 p-4 urssaf-card-hover">
-                  <p className="text-xs font-black font-mono text-red-500/50 tracking-widest mb-2">{kpi.label}</p>
+                  <p className="text-xs font-black font-mono text-red-400 tracking-widest mb-2">{kpi.label}</p>
                   <p className={`text-base font-black font-mono ${'color' in kpi ? (kpi.color ? 'text-green-500' : 'text-red-400') : 'text-red-200'}`}>
                     {kpi.value}
                   </p>
-                  <p className="text-xs font-mono text-red-900/60 mt-1">{kpi.sub}</p>
+                  <p className="text-xs font-mono text-red-400/60 mt-1">{kpi.sub}</p>
                 </div>
               ))}
             </div>
@@ -625,9 +703,9 @@ export default function FiscalitePage() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-1 h-4 bg-red-600 rounded" />
-                <h2 className="text-xs font-black font-mono text-red-400 tracking-widest uppercase">Charges Déductibles Déclarées</h2>
+                <h2 className="text-xs font-black font-mono text-red-300 tracking-widest uppercase">Charges Déductibles Déclarées</h2>
               </div>
-              <p className="text-xs font-mono text-red-900/60 pl-3">
+              <p className="text-xs font-mono text-red-400/70 pl-3">
                 {depensesPeriode.length} charge{depensesPeriode.length !== 1 ? 's' : ''} · {fmt(totalDepenses)} € · Justificatifs requis
               </p>
             </div>
@@ -656,7 +734,7 @@ export default function FiscalitePage() {
               <div className="border-t border-red-900/30 overflow-x-auto">
                 <table className="w-full text-xs font-mono">
                   <thead>
-                    <tr className="text-red-500/40 border-b border-red-900/30 bg-black/30">
+                    <tr className="text-red-300/80 border-b border-red-900/40 bg-black/30">
                       <th className="text-left px-5 py-3 font-bold tracking-widest">DATE</th>
                       <th className="text-left px-3 py-3 font-bold tracking-widest">CATÉGORIE</th>
                       <th className="text-left px-3 py-3 font-bold tracking-widest hidden sm:table-cell">DESCRIPTION</th>
@@ -668,8 +746,8 @@ export default function FiscalitePage() {
                     {depensesPeriode.map(d => (
                       <tr key={d.id} className="hover:bg-red-900/10 transition-colors">
                         <td className="px-5 py-3 text-red-300/50">{new Date(d.date).toLocaleDateString('fr-FR')}</td>
-                        <td className="px-3 py-3 text-red-200/70">{d.categorie}</td>
-                        <td className="px-3 py-3 text-red-900/60 hidden sm:table-cell">{d.description ?? '—'}</td>
+                        <td className="px-3 py-3 text-red-100/90">{d.categorie}</td>
+                        <td className="px-3 py-3 text-red-400/60 hidden sm:table-cell">{d.description ?? '—'}</td>
                         <td className="px-5 py-3 text-right text-red-300 font-bold">{fmt(d.montant)} €</td>
                         <td className="px-3 py-3">
                           <div className="flex gap-1 justify-end">
@@ -692,7 +770,7 @@ export default function FiscalitePage() {
                   </tbody>
                   <tfoot>
                     <tr className="border-t border-red-500/20 bg-red-900/10">
-                      <td colSpan={3} className="px-5 py-3 text-red-500/50 font-bold tracking-widest">TOTAL DÉCLARÉ</td>
+                      <td colSpan={3} className="px-5 py-3 text-red-300/80 font-bold tracking-widest">TOTAL DÉCLARÉ</td>
                       <td className="px-5 py-3 text-right font-black text-red-300">{fmt(totalDepenses)} €</td>
                       <td />
                     </tr>
@@ -719,8 +797,8 @@ export default function FiscalitePage() {
             <div className="flex items-center gap-2">
               <div className="w-1 h-4 bg-red-900 rounded" />
               <div>
-                <h2 className="text-xs font-black font-mono text-red-500/60 tracking-widest uppercase">Autres charges déductibles</h2>
-                <p className="text-xs font-mono text-red-900/50 mt-0.5">Frais commandes · Commissions · Abonnements</p>
+                <h2 className="text-xs font-black font-mono text-red-300/80 tracking-widest uppercase">Autres charges déductibles</h2>
+                <p className="text-xs font-mono text-red-400/70 mt-0.5">Frais commandes · Commissions · Abonnements</p>
               </div>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-red-900/50 transition-transform ${openSection === 'charges' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -740,17 +818,17 @@ export default function FiscalitePage() {
                 },
               ].map(({ title, rows, cols, render, empty }) => (
                 <div key={title}>
-                  <h3 className="text-xs font-black font-mono text-red-500/40 uppercase tracking-widest mb-3">{title}</h3>
-                  {rows.length === 0 ? <p className="text-xs font-mono text-red-900/40">{empty}</p> : (
+                  <h3 className="text-xs font-black font-mono text-red-300/80 uppercase tracking-widest mb-3">{title}</h3>
+                  {rows.length === 0 ? <p className="text-xs font-mono text-red-400/60">{empty}</p> : (
                     <table className="w-full text-xs font-mono">
-                      <thead><tr className="text-red-900/50 border-b border-red-900/30">
+                      <thead><tr className="text-red-300/70 border-b border-red-900/40">
                         {cols.map(c => <th key={c} className="text-left pb-2 font-bold">{c}</th>)}
                       </tr></thead>
                       <tbody className="divide-y divide-red-900/20">
                         {rows.map((r, i) => {
                           const cells = render(r as { fournisseur: string; fraisTotaux: number; fraisImputés: number })
                           return <tr key={i} className="hover:bg-red-900/10">
-                            {cells.map((c, j) => <td key={j} className={`py-2 ${j > 0 ? 'text-right text-red-300/60' : 'text-red-200/50'}`}>{c}</td>)}
+                            {cells.map((c, j) => <td key={j} className={`py-2 ${j > 0 ? 'text-right text-red-200/90' : 'text-red-200/50'}`}>{c}</td>)}
                           </tr>
                         })}
                       </tbody>
@@ -760,10 +838,10 @@ export default function FiscalitePage() {
               ))}
 
               <div>
-                <h3 className="text-xs font-black font-mono text-red-500/40 uppercase tracking-widest mb-3">Commissions plateformes</h3>
-                {commissionsPlateforme.length === 0 ? <p className="text-xs font-mono text-red-900/40">Aucune commission.</p> : (
+                <h3 className="text-xs font-black font-mono text-red-300/80 uppercase tracking-widest mb-3">Commissions plateformes</h3>
+                {commissionsPlateforme.length === 0 ? <p className="text-xs font-mono text-red-400/60">Aucune commission.</p> : (
                   <table className="w-full text-xs font-mono">
-                    <thead><tr className="text-red-900/50 border-b border-red-900/30">
+                    <thead><tr className="text-red-300/70 border-b border-red-900/40">
                       <th className="text-left pb-2 font-bold">Plateforme</th>
                       <th className="text-right pb-2 font-bold">Nb ventes</th>
                       <th className="text-right pb-2 font-bold">Commissions</th>
@@ -771,9 +849,9 @@ export default function FiscalitePage() {
                     <tbody className="divide-y divide-red-900/20">
                       {commissionsPlateforme.map((p, i) => (
                         <tr key={i} className="hover:bg-red-900/10">
-                          <td className="py-2 text-red-200/50">{p.plateforme}</td>
+                          <td className="py-2 text-red-200/85">{p.plateforme}</td>
                           <td className="py-2 text-right text-red-900/60">{p.nb}</td>
-                          <td className="py-2 text-right text-red-300/60">{fmt(p.frais)} €</td>
+                          <td className="py-2 text-right text-red-200/90">{fmt(p.frais)} €</td>
                         </tr>
                       ))}
                     </tbody>
@@ -782,18 +860,18 @@ export default function FiscalitePage() {
               </div>
 
               <div>
-                <h3 className="text-xs font-black font-mono text-red-500/40 uppercase tracking-widest mb-3">Abonnements de la période</h3>
-                {abonnementsPeriode.length === 0 ? <p className="text-xs font-mono text-red-900/40">Aucun abonnement.</p> : (
+                <h3 className="text-xs font-black font-mono text-red-300/80 uppercase tracking-widest mb-3">Abonnements de la période</h3>
+                {abonnementsPeriode.length === 0 ? <p className="text-xs font-mono text-red-400/60">Aucun abonnement.</p> : (
                   <table className="w-full text-xs font-mono">
-                    <thead><tr className="text-red-900/50 border-b border-red-900/30">
+                    <thead><tr className="text-red-300/70 border-b border-red-900/40">
                       <th className="text-left pb-2 font-bold">Mois</th>
                       <th className="text-right pb-2 font-bold">Montant</th>
                     </tr></thead>
                     <tbody className="divide-y divide-red-900/20">
                       {abonnementsPeriode.map((a, i) => (
                         <tr key={i} className="hover:bg-red-900/10">
-                          <td className="py-2 text-red-200/50">{a.mois}</td>
-                          <td className="py-2 text-right text-red-300/60">{fmt(a.montant)} €</td>
+                          <td className="py-2 text-red-200/85">{a.mois}</td>
+                          <td className="py-2 text-right text-red-200/90">{fmt(a.montant)} €</td>
                         </tr>
                       ))}
                     </tbody>
@@ -806,12 +884,13 @@ export default function FiscalitePage() {
 
         {/* Footer */}
         <div className="text-center py-4 border-t border-red-900/20">
-          <p className="text-xs font-mono text-red-900/40 tracking-widest">
+          <p className="text-xs font-mono text-red-400/60 tracking-widest">
             URSSAF · DOCUMENT CONFIDENTIEL · {new Date().getFullYear()} · TOUTE OMISSION EST SUSCEPTIBLE DE POURSUITES
           </p>
         </div>
 
       </div>
+      </div>{/* fin wrapper relatif */}
 
       {modalDepense.open && (
         <ModalDepense
