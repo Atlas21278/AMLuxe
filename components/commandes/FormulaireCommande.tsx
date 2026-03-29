@@ -173,7 +173,7 @@ export default function FormulaireCommande({ commande, initialArticles, fourniss
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 min-[480px]:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-white/50 mb-1.5">Date *</label>
             <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className={inputClass} />

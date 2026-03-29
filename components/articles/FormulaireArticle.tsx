@@ -94,7 +94,7 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 min-[480px]:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-white/60 mb-1.5">Marque *</label>
           <Combobox
@@ -116,7 +116,7 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 min-[480px]:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-white/60 mb-1.5">Prix d&apos;achat (€) *</label>
           <input type="number" step="0.01" min="0" required placeholder="0.00" value={form.prixAchat} onChange={(e) => setForm({ ...form, prixAchat: e.target.value })} className={inputClass} />
@@ -129,7 +129,7 @@ export default function FormulaireArticle({ commandeId, article, onClose }: Prop
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 min-[480px]:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-white/60 mb-1.5">Numéro de série</label>
           <input type="text" placeholder="N° de série" value={form.refFournisseur} onChange={(e) => setForm({ ...form, refFournisseur: e.target.value })} className={inputClass} />

@@ -38,7 +38,7 @@ export default function FormulaireFrais({ commandeId, onClose }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 min-[480px]:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-white/60 mb-1.5">Type *</label>
           <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className={inputClass}>
