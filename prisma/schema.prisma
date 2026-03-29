@@ -107,6 +107,19 @@ model Config {
   updatedAt DateTime @updatedAt
 }
 
+model DepensePro {
+  id          Int      @id @default(autoincrement())
+  date        DateTime
+  montant     Float
+  categorie   String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+  @@index([categorie])
+}
+
 model User {
   id         Int      @id @default(autoincrement())
   email      String   @unique
