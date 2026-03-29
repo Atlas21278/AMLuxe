@@ -168,6 +168,8 @@ export default function FiscalitePage() {
   const [abonnements, setAbonnements] = useState<AbonnementMensuel[]>([])
   const [depenses, setDepenses] = useState<DepensePro[]>([])
   const [loading, setLoading] = useState(true)
+  const [introReady, setIntroReady] = useState(false)
+  const [introProgress, setIntroProgress] = useState(0)
   const [periode, setPeriode] = useState<Periode>('annee')
   const [persoDebut, setPersoDebut] = useState('')
   const [persoFin, setPersoFin] = useState('')
@@ -175,6 +177,22 @@ export default function FiscalitePage() {
   const [exportLoading, setExportLoading] = useState(false)
   const [modalDepense, setModalDepense] = useState<{ open: boolean; depense?: DepensePro | null }>({ open: false })
   const [tick, setTick] = useState(0)
+
+  // Intro : durée fixe de 3s, progress animée, révèle la page seulement quand les deux sont prêts
+  useEffect(() => {
+    const DUREE = 3000
+    const start = Date.now()
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - start
+      const pct = Math.min(100, (elapsed / DUREE) * 100)
+      setIntroProgress(pct)
+      if (pct >= 100) {
+        clearInterval(interval)
+        setIntroReady(true)
+      }
+    }, 30)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 1000)
@@ -395,17 +413,75 @@ export default function FiscalitePage() {
 
   const dossierNum = useMemo(() => `${new Date().getFullYear()}-${String(Math.abs(Math.sin(Date.now() / 1e10) * 999999 | 0)).padStart(6, '0')}`, [])
 
-  if (loading) {
+  if (loading || !introReady) {
+    const steps = [
+      { threshold: 0,  label: 'INITIALISATION DU CONTRÔLE...' },
+      { threshold: 15, label: 'ACCÈS AU DOSSIER FISCAL...' },
+      { threshold: 30, label: 'ANALYSE DES REVENUS DÉCLARÉS...' },
+      { threshold: 50, label: 'VÉRIFICATION DES COTISATIONS...' },
+      { threshold: 70, label: 'CALCUL DES MAJORATIONS ÉVENTUELLES...' },
+      { threshold: 88, label: 'COMPILATION DU RAPPORT...' },
+      { threshold: 97, label: 'ACCÈS AUTORISÉ.' },
+    ]
+    const currentLabel = [...steps].reverse().find(s => introProgress >= s.threshold)?.label ?? steps[0].label
+
     return (
       <>
         <style>{urssafStyles}</style>
-        <div className="min-h-screen bg-[#050001] flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <div className="text-red-500 text-4xl font-black tracking-widest urssaf-glitch" data-text="URSSAF">URSSAF</div>
-            <div className="text-red-400 text-xs font-mono tracking-widest animate-pulse">ANALYSE DU DOSSIER EN COURS...</div>
-            <div className="w-48 h-1 bg-red-900/30 rounded mx-auto overflow-hidden">
-              <div className="h-full bg-red-600 urssaf-scan-bar" />
+        <div className="min-h-screen bg-[#080001] flex items-center justify-center urssaf-grid relative overflow-hidden">
+          <div className="absolute inset-0 urssaf-scanline pointer-events-none" />
+          <div className="absolute inset-0 urssaf-vignette pointer-events-none" />
+
+          <div className="relative z-10 text-center space-y-8 w-full max-w-sm px-8">
+            {/* Logo */}
+            <div>
+              <div
+                className="text-5xl font-black tracking-[0.3em] text-red-500 urssaf-glitch mb-2"
+                data-text="URSSAF"
+              >
+                URSSAF
+              </div>
+              <p className="text-xs font-mono text-red-400/50 tracking-widest uppercase">
+                Contrôle fiscal automatisé
+              </p>
             </div>
+
+            {/* Barre de progression */}
+            <div className="space-y-3">
+              <div className="h-px w-full bg-red-900/30 relative overflow-hidden rounded">
+                <div
+                  className="absolute left-0 top-0 h-full bg-red-600 transition-none rounded"
+                  style={{ width: `${introProgress}%`, boxShadow: '0 0 8px rgba(220,38,38,0.8)' }}
+                />
+              </div>
+              <div className="flex justify-between text-xs font-mono text-red-900/60">
+                <span className="text-red-500/60 urssaf-blink">▶</span>
+                <span className="text-red-400/80">{Math.round(introProgress)}%</span>
+              </div>
+            </div>
+
+            {/* Étape courante */}
+            <div className="h-6">
+              <p className="text-xs font-mono text-red-400/80 tracking-widest">
+                {currentLabel}
+              </p>
+            </div>
+
+            {/* Log lignes fausses */}
+            <div className="text-left border border-red-900/20 rounded bg-black/40 p-3 space-y-1">
+              {steps.filter(s => introProgress >= s.threshold).slice(-4).map((s, i) => (
+                <p key={i} className="text-xs font-mono text-red-900/60">
+                  <span className="text-red-800/60">[{new Date().toLocaleTimeString('fr-FR')}]</span>{' '}
+                  <span className={i === steps.filter(s2 => introProgress >= s2.threshold).length - 1 ? 'text-red-400/80' : 'text-red-900/50'}>
+                    {s.label}
+                  </span>
+                </p>
+              ))}
+            </div>
+
+            <p className="text-xs font-mono text-red-900/30 tracking-widest">
+              NE PAS FERMER CETTE FENÊTRE
+            </p>
           </div>
         </div>
       </>
