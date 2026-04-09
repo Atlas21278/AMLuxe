@@ -10,5 +10,5 @@ export default withAuth({
 })
 
 export const config = {
-  matcher: ['/((?!login|mot-de-passe-oublie|api/auth|_next/static|_next/image|favicon\\.ico).*)'],
+  matcher: ['/((?!login|mot-de-passe-oublie|api/auth|api/public|api/webhooks|_next/static|_next/image|favicon\\.ico).*)'],
 }
