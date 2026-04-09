@@ -3,11 +3,13 @@ import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/audit'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-03-25.dahlia',
-})
-
 export const dynamic = 'force-dynamic'
+
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2026-03-25.dahlia',
+  })
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
@@ -17,6 +19,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Signature manquante' }, { status: 400 })
   }
 
+  const stripe = getStripe()
   let event: Stripe.Event
 
   try {
