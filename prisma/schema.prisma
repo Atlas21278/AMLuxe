@@ -144,3 +144,18 @@ model CustomerOrder {
 
   @@index([clerkUserId])
 }
+
+model CustomerAddress {
+  id          Int      @id @default(autoincrement())
+  clerkUserId String
+  nom         String
+  prenom      String
+  adresse     String
+  ville       String
+  codePostal  String
+  telephone   String
+  defaut      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([clerkUserId])
+}
