@@ -51,13 +51,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    await logAudit({
-      action: 'UPDATE',
-      ressource: 'article',
-      cible: id,
-      details: JSON.stringify({ statut: 'Vendu', prixVenteReel, source: 'stripe-webhook' }),
-      userEmail: 'stripe@webhook',
-    })
+    await logAudit('UPDATE', 'article', id, 'stripe@webhook', { statut: 'Vendu', prixVenteReel, source: 'stripe-webhook' })
   }
 
   return NextResponse.json({ received: true })
